@@ -1,3 +1,4 @@
+using System;
 using FlotsamModKit.Abstractions;
 using FlotsamModKit.Game;
 using UnityEngine;
@@ -17,6 +18,7 @@ namespace FlotsamMods.BatchManager
         private GameObject _overlay;
         private BatchPanel _panel;
         private bool _iconSet;
+        private float _lastTickErrorLog = -99f;
 
         internal bool HighlightChecked = true;
         internal int ConfirmThreshold = 5;
@@ -76,6 +78,7 @@ namespace FlotsamMods.BatchManager
 
         public override void OnGameStart()
         {
+            MarkDirty();   // 读档后建筑数据是新的，强制下次打开/刷新时重建分组
             Ui.Toast("批量管理就绪：Ctrl+1 开关；勾选即在世界中高亮，◀▶ 逐个跳转核对", ToastKind.Success);
         }
 
@@ -90,7 +93,18 @@ namespace FlotsamMods.BatchManager
                 try { _button?.SetIcon(NativeSkin.Find("build", "hammer", "construction")); } catch { }
             }
             if (_hotkey != null && _hotkey.IsDown && GameKeys.GetCtrlHeld()) Toggle();
-            try { _panel?.Tick(); } catch { }
+            try { _panel?.Tick(); }
+            catch (Exception e)
+            {
+                // Never swallow panel errors silently: a throwing Refresh would otherwise leave
+                // the lists stale with zero evidence in the log. Throttled to 1/s against spam.
+                float now = Time.realtimeSinceStartup;
+                if (now - _lastTickErrorLog > 1f)
+                {
+                    _lastTickErrorLog = now;
+                    Log.Error("panel tick failed", e);
+                }
+            }
         }
 
         private void EnsureUi()

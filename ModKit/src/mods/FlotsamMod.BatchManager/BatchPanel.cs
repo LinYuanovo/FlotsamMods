@@ -35,6 +35,7 @@ namespace FlotsamMods.BatchManager
         private RectTransform _rightArea;
         private TMP_Text _selCount;
         private TMP_Text _jumpInfo;
+        private TMP_Text _selectAllText;
         private RectTransform _actionBar;
         private RectTransform _confirmBar;
         private TMP_Text _confirmLabel;
@@ -147,9 +148,10 @@ namespace FlotsamMods.BatchManager
             TopStrip(bar, -52f, 28f);
 
             float x = 2f;
-            x = AddChip(bar, "全选", ref x, SelectAll);
-            x = AddChip(bar, "反选", ref x, InvertAll);
-            x = AddChip(bar, "清空", ref x, ClearAll);
+            var allChip = AddChip(bar, "全选", ref x, SelectAll, 84f);
+            _selectAllText = allChip.GetComponentInChildren<TMP_Text>();
+            AddChip(bar, "反选", ref x, InvertAll);
+            AddChip(bar, "清空", ref x, ClearAll);
 
             _selCount = GameUi.Label(bar.transform, "已选 0 座", 14, GameUi.TextColor, TextAnchor.MiddleLeft);
             var srt = GameUi.Rect(_selCount.gameObject);
@@ -166,13 +168,13 @@ namespace FlotsamMods.BatchManager
                           new Vector2(-32f, 0f), new Vector2(30f, 24f));
         }
 
-        private float AddChip(RectTransform bar, string label, ref float x, Action onClick)
+        private Button AddChip(RectTransform bar, string label, ref float x, Action onClick, float width = 52f)
         {
             var chip = GameUi.Chip(bar.transform, label, false, onClick, 13);
             GameUi.Anchor(GameUi.Rect(chip.gameObject), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f),
-                          new Vector2(x, 0f), new Vector2(52f, 24f));
-            x += 56f;
-            return x;
+                          new Vector2(x, 0f), new Vector2(width, 24f));
+            x += width + 4f;
+            return chip;
         }
 
         private void BuildActionBar(Transform body)
@@ -700,19 +702,34 @@ namespace FlotsamMods.BatchManager
         private void SelectAll()
         {
             if (_confirming) LeaveConfirm();
+            if (_rightItems.Count == 0)
+            {
+                _mod.UiS.Toast("右栏没有可勾选的建筑（左栏点「全部建筑」，或展开分类选一个型号）", ToastKind.Warning);
+                _mod.L.Info("selectall: right list empty");
+                return;
+            }
+            int added = 0;
             foreach (var b in _rightItems)
                 if (b != null && _checked.Add(b))
                 {
                     _checkedOrder.Add(b);
+                    added++;
                     if (_mod.HighlightChecked) GameBatch.Highlight(b, true);
                 }
             RebuildRight();
             UpdateToolbar();
+            _mod.L.Info($"selectall: right={_rightItems.Count} added={added} total={_checked.Count}");
         }
 
         private void InvertAll()
         {
             if (_confirming) LeaveConfirm();
+            if (_rightItems.Count == 0)
+            {
+                _mod.UiS.Toast("右栏没有可勾选的建筑（左栏点「全部建筑」，或展开分类选一个型号）", ToastKind.Warning);
+                _mod.L.Info("invert: right list empty");
+                return;
+            }
             foreach (var b in _rightItems)
             {
                 if (b == null) continue;
@@ -731,21 +748,25 @@ namespace FlotsamMods.BatchManager
             }
             RebuildRight();
             UpdateToolbar();
+            _mod.L.Info($"invert: right={_rightItems.Count} total={_checked.Count}");
         }
 
         private void ClearAll()
         {
             if (_confirming) LeaveConfirm();
+            int was = _checked.Count;
             if (_mod.HighlightChecked) GameBatch.HighlightAll(_checked, false);
             _checked.Clear();
             _checkedOrder.Clear();
             RebuildRight();
             UpdateToolbar();
+            _mod.L.Info("clear: was=" + was);
         }
 
         private void UpdateToolbar()
         {
             if (_selCount != null) _selCount.text = "已选 " + _checked.Count + " 座";
+            if (_selectAllText != null) _selectAllText.text = _selected == null ? "全选" : "全选本型号";
             if (_status != null)
                 _status.text = $"显示 {_rightItems.Count} / 共 {_totalBuildings} 座建筑 · {_groups.Count} 个型号";
             UpdateJumpInfo();
