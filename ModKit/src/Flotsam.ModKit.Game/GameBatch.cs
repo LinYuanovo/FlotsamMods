@@ -13,7 +13,7 @@ namespace FlotsamModKit.Game
         public Sprite Icon;
         public BuildableCategory Category;
         public readonly List<Buildable> Items = new List<Buildable>();
-        public int Finished, Building, Busy, Upgradable, Inactive;
+        public int Finished, Building, Busy, Upgradable, UpgradeTotal, Inactive;
     }
 
     public enum BatchOp { Salvage, CancelSalvage, Upgrade, CancelUpgrade, Activate, Deactivate }
@@ -202,11 +202,12 @@ namespace FlotsamModKit.Game
 
         private static void CountStatuses(TypeGroup g)
         {
-            g.Finished = g.Building = g.Busy = g.Upgradable = g.Inactive = 0;
+            g.Finished = g.Building = g.Busy = g.Upgradable = g.UpgradeTotal = g.Inactive = 0;
             foreach (var b in g.Items)
             {
                 try
                 {
+                    if (SupportsUpgrade(b)) g.UpgradeTotal++;
                     if (IsSalvaging(b) || IsUpgrading(b)) { g.Busy++; continue; }
                     if (b.BuildPhase != BuildPhase.Finished) { g.Building++; continue; }
                     g.Finished++;

@@ -148,6 +148,7 @@ namespace FlotsamMods.BatchManager
             TopStrip(bar, -52f, 28f);
 
             float x = 2f;
+            AddChip(bar, "选可升级", ref x, SelectUpgradeable, 68f);
             var allChip = AddChip(bar, "全选", ref x, SelectAll, 84f);
             _selectAllText = allChip.GetComponentInChildren<TMP_Text>();
             AddChip(bar, "反选", ref x, InvertAll);
@@ -539,7 +540,7 @@ namespace FlotsamMods.BatchManager
         private static string StatusBadge(TypeGroup g)
         {
             var parts = new List<string>();
-            if (g.Upgradable > 0) parts.Add("可升" + g.Upgradable);
+            if (g.UpgradeTotal > 0) parts.Add($"可升 {g.Upgradable}/{g.UpgradeTotal}");
             if (g.Busy > 0) parts.Add("拆/升中" + g.Busy);
             if (g.Building > 0) parts.Add("建造中" + g.Building);
             if (g.Inactive > 0) parts.Add("停用" + g.Inactive);
@@ -628,10 +629,12 @@ namespace FlotsamMods.BatchManager
             }
 
             bool finished = GameBuildings.IsFinished(b);
+            bool upgradeReady = GameBatch.CanUpgradeNow(b);   // Finished+科技解锁+材料足够（原生 CanUpgrade 同款）
             string text = GameBuildings.NameOf(b) + StatusSuffix(b);
             if (typeName != null) text = typeName + " · " + text;
             var label = GameUi.Label(row.transform, text, 14,
-                                     finished ? GameUi.TextColor : GameUi.DimText, TextAnchor.MiddleLeft);
+                                     upgradeReady ? GameUi.Good : (finished ? GameUi.TextColor : GameUi.DimText),
+                                     TextAnchor.MiddleLeft);
             label.raycastTarget = false;
             GameUi.Stretch(GameUi.Rect(label.gameObject), 58f, 1f, 118f, 1f);
 
@@ -697,6 +700,33 @@ namespace FlotsamMods.BatchManager
                 else img.color = nowChecked ? GameUi.Good : GameUi.DimText;
             }
             UpdateToolbar();
+        }
+
+        /// <summary>Quick-select every row that passes the game's own CanUpgrade() right now
+        /// (finished + tech unlocked + community resources available).</summary>
+        private void SelectUpgradeable()
+        {
+            if (_confirming) LeaveConfirm();
+            int eligible = 0;
+            foreach (var b in _rightItems)
+            {
+                if (b == null || !GameBatch.CanUpgradeNow(b)) continue;
+                eligible++;
+                if (_checked.Add(b))
+                {
+                    _checkedOrder.Add(b);
+                    if (_mod.HighlightChecked) GameBatch.Highlight(b, true);
+                }
+            }
+            if (eligible == 0)
+            {
+                _mod.UiS.Toast("当前列表没有满足升级条件的建筑（需已建成、科技解锁且材料足够）", ToastKind.Info);
+                _mod.L.Info("pick-upgradable: none eligible");
+                return;
+            }
+            RebuildRight();
+            UpdateToolbar();
+            _mod.L.Info($"pick-upgradable: right={_rightItems.Count} eligible={eligible} total={_checked.Count}");
         }
 
         private void SelectAll()
