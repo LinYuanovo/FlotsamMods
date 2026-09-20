@@ -1,0 +1,168 @@
+using System;
+using FlotsamModKit.Abstractions;
+using FlotsamModKit.Game;
+using UnityEngine;
+
+namespace FlotsamMods.PowerLink
+{
+    /// <summary>
+    /// One-key energy-grid auto-connect. Ctrl+2 (or the HUD button) connects every unpowered
+    /// building to the powered network with the shortest total cable, optionally re-organizing
+    /// existing wiring when that is meaningfully shorter, and merging a deficient powered grid
+    /// into a surplus one. The optional auto mode repeats the incremental pass a few seconds
+    /// after any building is built/placed, plus a low-frequency heartbeat.
+    /// Logging policy (design §5): one summary line per run with changes; per-edge detail only
+    /// when verbose; never anything per-frame.
+    /// </summary>
+    public sealed class PowerLinkMod : FlotsamModBase
+    {
+        private IKeybind _hotkey;
+        private IHudButton _runButton;
+        private IHudButton _autoButton;
+
+        private bool _auto;
+        private float _interval = 10f;
+        private bool _optimize = true;
+        private float _gainPct = 10f;
+        private bool _connectPoles = true;
+        private bool _merge = true;
+        private bool _verbose;
+
+        private bool _running;
+        private float _nextHeartbeat;
+        private float _pendingAt = -1f;
+        private string _lastToast = "";
+        private float _lastToastAt = -99f;
+
+        public override void OnLoad(IModContext context)
+        {
+            base.OnLoad(context);
+            _hotkey = Keybinds.Register("powerlink.connect", KeyCode.Alpha2, "一键连电网(Ctrl+2)");
+            _auto = Config.Get("autoMode", false);
+            _interval = Mathf.Clamp(Config.Get("autoIntervalSec", 10f), 3f, 120f);
+            _optimize = Config.Get("optimizeExisting", true);
+            _gainPct = Mathf.Clamp(Config.Get("optimizeGainPct", 10f), 0f, 90f);
+            _connectPoles = Config.Get("connectPolesToGrid", true);
+            _merge = Config.Get("mergePoweredGrids", true);
+            _verbose = Config.Get("verbose", false);
+        }
+
+        public override void OnEnable()
+        {
+            _runButton = Ui.AddHudButton("powerlink.run", "连电网", () => RunOnce(true),
+                                         HudAnchor.RightMiddle, Config, "button");
+            _runButton.Visible = true;
+            _runButton.SetIcon(NativeSkin.Find("energy", "power", "bolt", "electric", "battery"));
+
+            _autoButton = Ui.AddHudButton("powerlink.auto", AutoLabel, ToggleAuto,
+                                          HudAnchor.RightMiddle, Config, "autobutton");
+            _autoButton.Visible = true;
+
+            Events.On("BuildableBuilt", _ => QueueAuto());
+            Events.On("BuildablePlaced", _ => QueueAuto());
+
+            Log.Info($"powerlink ready (auto={_auto}, optimize={_optimize}, gainPct={_gainPct:0.#}, " +
+                     $"poles={_connectPoles}, merge={_merge})");
+        }
+
+        public override void OnDisable()
+        {
+            try { _runButton?.Destroy(); } catch { }
+            try { _autoButton?.Destroy(); } catch { }
+            _runButton = null;
+            _autoButton = null;
+            _pendingAt = -1f;
+            Log.Info("powerlink removed");
+        }
+
+        public override void OnGameStart()
+        {
+            _nextHeartbeat = Time.realtimeSinceStartup + _interval;
+            Ui.Toast($"一键电网就绪：Ctrl+2 或点「连电网」；自动连网当前{(_auto ? "开" : "关")}",
+                     ToastKind.Success);
+        }
+
+        public override void OnGameEnd()
+        {
+            _pendingAt = -1f;
+            _running = false;
+        }
+
+        public override void OnTick()
+        {
+            if (_hotkey != null && _hotkey.IsDown && GameKeys.GetCtrlHeld()) RunOnce(true);
+
+            if (!_auto || _running) return;
+            float now = Time.realtimeSinceStartup;
+            if (_pendingAt >= 0f && now >= _pendingAt)
+            {
+                _pendingAt = -1f;
+                RunOnce(false);
+            }
+            else if (now >= _nextHeartbeat)
+            {
+                RunOnce(false);
+            }
+        }
+
+        private void QueueAuto()
+        {
+            if (_auto) _pendingAt = Time.realtimeSinceStartup + 3f;
+        }
+
+        private string AutoLabel => _auto ? "自动连网:开" : "自动连网:关";
+
+        private void ToggleAuto()
+        {
+            _auto = !_auto;
+            Config.Set("autoMode", _auto);
+            Config.Save();
+            try { _autoButton?.SetLabel(AutoLabel); } catch { }
+            if (_auto) _nextHeartbeat = Time.realtimeSinceStartup + _interval;
+            else _pendingAt = -1f;
+            Ui.Toast($"自动连网已{(_auto ? "开启" : "关闭")}", ToastKind.Info);
+            Log.Info("auto mode " + (_auto ? "on" : "off"));
+        }
+
+        private void RunOnce(bool manual)
+        {
+            if (_running) return;
+            _running = true;
+            try
+            {
+                var res = GameEnergy.RunAutoConnect(
+                    optimizeExisting: manual && _optimize,   // rebuilds are manual-only (design §4.4)
+                    gainPct: _gainPct,
+                    connectPoles: _connectPoles,
+                    mergePowered: _merge,
+                    verbose: _verbose,
+                    log: m => Log.Info(m));
+
+                _nextHeartbeat = Time.realtimeSinceStartup + _interval;
+
+                if (res.Blocked && !manual) return;
+
+                if (manual || res.HasChanges)
+                {
+                    string text = res.SummaryText();
+                    float now = Time.realtimeSinceStartup;
+                    if (text != _lastToast || now - _lastToastAt > 5f)
+                    {
+                        Ui.Toast(text, res.HasChanges ? ToastKind.Success : ToastKind.Info);
+                        _lastToast = text;
+                        _lastToastAt = now;
+                    }
+                    Log.Info("run: " + res.LogLine());
+                }
+            }
+            catch (Exception e)
+            {
+                Log.Error("auto-connect failed", e);
+            }
+            finally
+            {
+                _running = false;
+            }
+        }
+    }
+}
