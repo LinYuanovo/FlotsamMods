@@ -1,0 +1,8 @@
+{
+  "move.forward": "UpArrow",
+  "move.backward": "DownArrow",
+  "move.rotateLeft": "LeftArrow",
+  "move.rotateRight": "RightArrow",
+  "move.toggle": "F8",
+  "move.settle": "Return"
+}

@@ -1,0 +1,6 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>Flotsam.ModKit.Probe</AssemblyName>
+    <RootNamespace>Flotsam.ModKit.Probe</RootNamespace>
+  </PropertyGroup>
+</Project>

@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>FlotsamModKit.Host</AssemblyName>
+    <RootNamespace>Flotsam.ModKit.Host</RootNamespace>
+    <Version>1.0.0</Version>
+    <!-- The host output must contain Host + Abstractions + Game, all in one folder:
+         BepInEx loads every DLL there, so mods can resolve the shared contracts. -->
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Flotsam.ModKit.Abstractions\Flotsam.ModKit.Abstractions.csproj" />
+    <ProjectReference Include="..\Flotsam.ModKit.Game\Flotsam.ModKit.Game.csproj" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,22 @@
+# ---- 游戏运行时（不属于 mod 工程，不入库）----
+/*.exe
+/*.dll
+/*.ini
+/.doorstop_version
+/Licenses.txt
+/Flotsam_Data/
+/MonoBleedingEdge/
+/D3D12/
+/Videos/
+/BepInEx/
+/Flotsam_汉化包/
+/_l10n_work/
+
+# ---- 工具缓存 ----
+/.codegraph/
+
+# ---- 构建产物 ----
+ModKit/**/bin/
+ModKit/**/obj/
+Mods/**/*.dll
+Mods/**/*.pdb

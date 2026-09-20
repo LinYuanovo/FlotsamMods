@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>FlotsamMod.MaterialHelper</AssemblyName>
+    <RootNamespace>FlotsamMods.MaterialHelper</RootNamespace>
+    <Version>1.0.0</Version>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\Flotsam.ModKit.Abstractions\Flotsam.ModKit.Abstractions.csproj" Private="false" />
+    <ProjectReference Include="..\..\Flotsam.ModKit.Game\Flotsam.ModKit.Game.csproj" Private="false" />
+  </ItemGroup>
+</Project>

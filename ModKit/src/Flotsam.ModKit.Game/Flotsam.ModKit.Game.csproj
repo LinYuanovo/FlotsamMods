@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>Flotsam.ModKit.Game</AssemblyName>
+    <RootNamespace>Flotsam.ModKit.Game</RootNamespace>
+    <Version>1.0.0</Version>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Flotsam.ModKit.Abstractions\Flotsam.ModKit.Abstractions.csproj" />
+  </ItemGroup>
+</Project>

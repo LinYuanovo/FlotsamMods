@@ -1,0 +1,11 @@
+__StaticArrayInitTypeSize=153
+__StaticArrayInitTypeSize=285
+<Module>
+<PrivateImplementationDetails>
+Mode
+MonoScriptData
+UnityEditorHelper.LayerAttribute
+UnityEditorHelper.LimitAttribute
+UnityEditorHelper.SortingLayerAttribute
+UnityEditorHelper.TagAttribute
+UnitySourceGeneratedAssemblyMonoScriptTypes_v1

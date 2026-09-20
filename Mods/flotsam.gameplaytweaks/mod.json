@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "id": "flotsam.gameplaytweaks",
+  "name": "游戏性调整",
+  "version": "1.0.0",
+  "author": "ModKit",
+  "description": "用滑块自由调整三项游戏平衡，全部以原版百分比表示（100%=原版）：① 重量——移动能耗随重量的增长（0%=重量不再增加能耗）与牵引/载重上限（调高后超重也能继续建造）；② 发电——所有发电机（风/水、燃料、人力）的产出效率；③ 美观度——建筑美观分的正/负贡献，以及美观对居民士气修正的正/负强度。改动即时生效并记忆，可一键恢复默认或关闭总开关整体还原原版。按 F7 或点左上角「游戏性调整」按钮打开面板，窗口可拖动、可缩放、位置与尺寸自动记忆。",
+  "apiVersion": "1.1",
+  "gameVersionRange": ">=1.0.0",
+  "type": "code",
+  "restartRequired": false,
+  "entryAssembly": "FlotsamMod.GameplayTweaks.dll",
+  "entryType": "FlotsamMods.GameplayTweaks.GameplayTweaksMod",
+  "dependencies": [],
+  "permissions": ["ui", "keybinds", "config"],
+  "keybinds": [
+    { "id": "tweaks.panel", "default": "F7", "display": "显示/隐藏游戏性调整面板" }
+  ]
+}
