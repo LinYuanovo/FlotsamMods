@@ -46,10 +46,12 @@ namespace FlotsamMods.BatchManager
         private readonly List<Buildable> _rightItems = new List<Buildable>();
         private readonly Dictionary<Buildable, Image> _rowChecks = new Dictionary<Buildable, Image>();
         private readonly HashSet<Buildable> _checked = new HashSet<Buildable>();
+        private readonly List<Buildable> _checkedOrder = new List<Buildable>();   // _checked in click order (jump list)
         private readonly List<Buildable> _jumpList = new List<Buildable>();
         private readonly List<PlaceableAlertProperties> _malfunctions = new List<PlaceableAlertProperties>();
 
-        private TypeGroup _selected;
+        private TypeGroup _selected;                 // null == 「全部建筑」模式
+        private int _totalBuildings;
         private string _query = "";
         private bool _dirty = true;
         private bool _visible;
@@ -80,7 +82,7 @@ namespace FlotsamMods.BatchManager
                                     _mod.Cfg, "window", () => _requestClose(), 30f);
             var body = _window.Body.transform;
 
-            _search = GameUi.SearchInput(body, "搜索建筑型号…", v => { _query = v ?? ""; MarkDirty(); });
+            _search = GameUi.SearchInput(body, "搜索建筑型号…", v => { _query = v ?? ""; if (_confirming) LeaveConfirm(); MarkDirty(); });
             TopStrip(GameUi.Rect(_search.gameObject), 0f, 28f);
             var relay = _search.gameObject.AddComponent<InputFocusRelay>();
             relay.Selected = PushTyping;
@@ -278,6 +280,7 @@ namespace FlotsamMods.BatchManager
         {
             GameBatch.HighlightAll(_checked, false);
             _checked.Clear();
+            _checkedOrder.Clear();
             if (_window != null) { try { _window.Destroy(); } catch { } }
             _window = null;
         }
@@ -319,6 +322,9 @@ namespace FlotsamMods.BatchManager
                 if (b == null) (dead ?? (dead = new List<Buildable>())).Add(b);
             if (dead != null)
                 foreach (var b in dead) _checked.Remove(b);
+            for (int i = _checkedOrder.Count - 1; i >= 0; i--)
+                if (_checkedOrder[i] == null || !_checked.Contains(_checkedOrder[i]))
+                    _checkedOrder.RemoveAt(i);
         }
 
         private void RebuildGroups()
@@ -345,13 +351,8 @@ namespace FlotsamMods.BatchManager
             }
 
             if (_selected != null && !_groups.Contains(_selected)) _selected = null;
-            if (_status != null)
-            {
-                int buildings = 0;
-                foreach (var g in _groups) buildings += g.Items.Count;
-                _status.text = $"{_groups.Count} 个型号 / {buildings} 座建筑" +
-                               (_mod.SortByDistance ? "（按距镇心排序）" : "");
-            }
+            _totalBuildings = 0;
+            foreach (var g in _groups) _totalBuildings += g.Items.Count;
         }
 
         private static float DistTo(Buildable b, Vector3 th)
@@ -385,11 +386,21 @@ namespace FlotsamMods.BatchManager
             try { return c.Name.ToString(); } catch { return ""; }
         }
 
+        private static Color SafeColor(BuildableCategory c, Color fallback)
+        {
+            try { return c.UIColor; } catch { return fallback; }
+        }
+
+        private static Sprite SafeIcon(BuildableCategory c)
+        {
+            try { return c.IconSprite; } catch { return null; }
+        }
+
         private void RebuildLeft()
         {
             ClearRows(_leftRows);
             var visible = VisibleGroups();
-            if (_selected == null && visible.Count > 0) _selected = visible[0];
+            AddLeftAllRow();
 
             BuildableCategory lastCat = null;
             bool first = true;
@@ -398,19 +409,62 @@ namespace FlotsamMods.BatchManager
                 if (first || g.Category != lastCat)
                 {
                     lastCat = g.Category;
-                    AddLeftHeader(SafeCatName(g.Category));
+                    AddLeftHeader(g.Category);
                 }
                 first = false;
                 AddLeftRow(g);
             }
         }
 
-        private void AddLeftHeader(string text)
+        /// <summary>Fixed top row: every visible type's instances, concatenated in left-column order.</summary>
+        private void AddLeftAllRow()
         {
-            var header = GameUi.Row(_leftContent, 22f, new Color(GameUi.Accent.r, GameUi.Accent.g, GameUi.Accent.b, 0.18f));
-            var label = GameUi.Label(header.transform, text, 13, GameUi.Accent, TextAnchor.MiddleLeft);
+            bool selected = _selected == null;
+            var row = GameUi.Row(_leftContent, TypeRowHeight, null);
+            TintSelected(row, selected, GameUi.Accent);
+            var button = row.AddComponent<Button>();
+            button.targetGraphic = row.GetComponent<Image>();
+            button.onClick.AddListener(() => SelectGroup(null));
+
+            var name = GameUi.Label(row.transform, "全部建筑", 13,
+                                    selected ? GameUi.TextColor : GameUi.DimText, TextAnchor.MiddleLeft);
+            name.raycastTarget = false;
+            GameUi.Stretch(GameUi.Rect(name.gameObject), 8f, 1f, 96f, 1f);
+
+            var count = GameUi.Label(row.transform, "×" + _totalBuildings, 13,
+                                     selected ? GameUi.TextColor : GameUi.DimText, TextAnchor.MiddleRight);
+            count.raycastTarget = false;
+            GameUi.Anchor(GameUi.Rect(count.gameObject), new Vector2(1f, 0.5f), new Vector2(1f, 0.5f),
+                          new Vector2(-6f, 0f), new Vector2(44f, 20f));
+
+            _leftRows.Add(row);
+        }
+
+        /// <summary>Row() keeps the native sliced sprite white, so a selected row is tinted by
+        /// multiplying the Image colour (same trick as BuildingFinder's category buttons).</summary>
+        private static void TintSelected(GameObject row, bool selected, Color c)
+        {
+            if (!selected) return;
+            var rowImg = row.GetComponent<Image>();
+            if (rowImg != null) rowImg.color = new Color(c.r * 0.55f + 0.45f, c.g * 0.55f + 0.45f, c.b * 0.55f + 0.45f, 1f);
+        }
+
+        private void AddLeftHeader(BuildableCategory cat)
+        {
+            Color c = SafeColor(cat, GameUi.Accent);
+            var header = GameUi.Row(_leftContent, 22f, new Color(c.r, c.g, c.b, 0.18f));
+            float textLeft = 8f;
+            var sprite = SafeIcon(cat);
+            if (sprite != null)
+            {
+                var icon = GameUi.Icon(header.transform, sprite, 18f);
+                GameUi.Anchor(GameUi.Rect(icon.gameObject), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f),
+                              new Vector2(6f, 0f), new Vector2(18f, 18f));
+                textLeft = 28f;
+            }
+            var label = GameUi.Label(header.transform, SafeCatName(cat), 13, c, TextAnchor.MiddleLeft);
             label.raycastTarget = false;
-            GameUi.Stretch(GameUi.Rect(label.gameObject), 8f, 1f, 8f, 1f);
+            GameUi.Stretch(GameUi.Rect(label.gameObject), textLeft, 1f, 8f, 1f);
             _leftRows.Add(header);
         }
 
@@ -418,15 +472,7 @@ namespace FlotsamMods.BatchManager
         {
             bool selected = g == _selected;
             var row = GameUi.Row(_leftContent, TypeRowHeight, null);
-            // Row() keeps the native sliced sprite white, so a selected row is tinted by
-            // multiplying the Image colour (same trick as BuildingFinder's category buttons).
-            if (selected)
-            {
-                Color c = GameUi.Accent;
-                try { if (g.Category != null) c = g.Category.UIColor; } catch { }
-                var rowImg = row.GetComponent<Image>();
-                if (rowImg != null) rowImg.color = new Color(c.r * 0.55f + 0.45f, c.g * 0.55f + 0.45f, c.b * 0.55f + 0.45f, 1f);
-            }
+            TintSelected(row, selected, SafeColor(g.Category, GameUi.Accent));
             var button = row.AddComponent<Button>();
             button.targetGraphic = row.GetComponent<Image>();
             button.onClick.AddListener(() => SelectGroup(g));
@@ -475,6 +521,7 @@ namespace FlotsamMods.BatchManager
 
         private void SelectGroup(TypeGroup g)
         {
+            if (_confirming) LeaveConfirm();
             _selected = g;
             RebuildLeft();
             RebuildRight();
@@ -486,18 +533,29 @@ namespace FlotsamMods.BatchManager
             ClearRows(_rightRows);
             _rightItems.Clear();
             _rowChecks.Clear();
-            if (_selected == null) return;
+            if (_selected == null)
+            {
+                // 「全部建筑」：按左栏顺序拼接所有可见型号的实例，行名带型号前缀
+                foreach (var g in VisibleGroups())
+                    foreach (var b in g.Items)
+                    {
+                        if (b == null) continue;
+                        _rightItems.Add(b);
+                        AddRightRow(b, _rightItems.Count - 1, g.Name);
+                    }
+                return;
+            }
 
             for (int i = 0; i < _selected.Items.Count; i++)
             {
                 var b = _selected.Items[i];
                 if (b == null) continue;
                 _rightItems.Add(b);
-                AddRightRow(b, _rightItems.Count - 1);
+                AddRightRow(b, _rightItems.Count - 1, null);
             }
         }
 
-        private void AddRightRow(Buildable b, int index)
+        private void AddRightRow(Buildable b, int index, string typeName)
         {
             var row = GameUi.Row(_rightContent, RowHeight, index % 2 == 0 ? GameUi.RowBg : GameUi.RowBgAlt);
             var button = row.AddComponent<Button>();
@@ -524,7 +582,9 @@ namespace FlotsamMods.BatchManager
             }
 
             bool finished = GameBuildings.IsFinished(b);
-            var label = GameUi.Label(row.transform, GameBuildings.NameOf(b) + StatusSuffix(b), 14,
+            string text = GameBuildings.NameOf(b) + StatusSuffix(b);
+            if (typeName != null) text = typeName + " · " + text;
+            var label = GameUi.Label(row.transform, text, 14,
                                      finished ? GameUi.TextColor : GameUi.DimText, TextAnchor.MiddleLeft);
             label.raycastTarget = false;
             GameUi.Stretch(GameUi.Rect(label.gameObject), 58f, 1f, 118f, 1f);
@@ -578,9 +638,10 @@ namespace FlotsamMods.BatchManager
         private void ToggleCheck(Buildable b)
         {
             if (b == null) return;
+            if (_confirming) LeaveConfirm();
             bool nowChecked;
-            if (_checked.Contains(b)) { _checked.Remove(b); nowChecked = false; }
-            else { _checked.Add(b); nowChecked = true; }
+            if (_checked.Contains(b)) { _checked.Remove(b); _checkedOrder.Remove(b); nowChecked = false; }
+            else { _checked.Add(b); _checkedOrder.Add(b); nowChecked = true; }
 
             if (_mod.HighlightChecked) GameBatch.Highlight(b, nowChecked);
             if (_rowChecks.TryGetValue(b, out var img) && img != null)
@@ -594,26 +655,33 @@ namespace FlotsamMods.BatchManager
 
         private void SelectAll()
         {
+            if (_confirming) LeaveConfirm();
             foreach (var b in _rightItems)
-                if (b != null && _checked.Add(b) && _mod.HighlightChecked)
-                    GameBatch.Highlight(b, true);
+                if (b != null && _checked.Add(b))
+                {
+                    _checkedOrder.Add(b);
+                    if (_mod.HighlightChecked) GameBatch.Highlight(b, true);
+                }
             RebuildRight();
             UpdateToolbar();
         }
 
         private void InvertAll()
         {
+            if (_confirming) LeaveConfirm();
             foreach (var b in _rightItems)
             {
                 if (b == null) continue;
                 if (_checked.Contains(b))
                 {
                     _checked.Remove(b);
+                    _checkedOrder.Remove(b);
                     if (_mod.HighlightChecked) GameBatch.Highlight(b, false);
                 }
                 else
                 {
                     _checked.Add(b);
+                    _checkedOrder.Add(b);
                     if (_mod.HighlightChecked) GameBatch.Highlight(b, true);
                 }
             }
@@ -623,8 +691,10 @@ namespace FlotsamMods.BatchManager
 
         private void ClearAll()
         {
+            if (_confirming) LeaveConfirm();
             if (_mod.HighlightChecked) GameBatch.HighlightAll(_checked, false);
             _checked.Clear();
+            _checkedOrder.Clear();
             RebuildRight();
             UpdateToolbar();
         }
@@ -632,14 +702,16 @@ namespace FlotsamMods.BatchManager
         private void UpdateToolbar()
         {
             if (_selCount != null) _selCount.text = "已选 " + _checked.Count + " 座";
+            if (_status != null)
+                _status.text = $"显示 {_rightItems.Count} / 共 {_totalBuildings} 座建筑 · {_groups.Count} 个型号";
             UpdateJumpInfo();
         }
 
         private void RebuildJumpList()
         {
             _jumpList.Clear();
-            foreach (var b in _rightItems)
-                if (b != null && _checked.Contains(b)) _jumpList.Add(b);
+            foreach (var b in _checkedOrder)
+                if (b != null) _jumpList.Add(b);
             if (_jumpIndex >= _jumpList.Count) _jumpIndex = 0;
         }
 
@@ -667,13 +739,18 @@ namespace FlotsamMods.BatchManager
         {
             if (b == null) return;
             if (!GameBuildings.Focus(b, _mod.Zoom))
+            {
                 _mod.UiS.Toast("无法定位该建筑（相机不可用）", ToastKind.Warning);
+                return;
+            }
+            if (_mod.HideAfterFocus) _requestClose();
         }
 
         // ------------------------------------------------------------ batch actions
 
         private void Exec(BatchOp op, string verb, bool needConfirm)
         {
+            if (_confirming && op != _confirmOp) LeaveConfirm();
             if (_checked.Count == 0)
             {
                 _mod.UiS.Toast("先在右侧勾选建筑", ToastKind.Warning);
@@ -690,8 +767,9 @@ namespace FlotsamMods.BatchManager
         private void DoRun(BatchOp op, string verb)
         {
             var targets = new List<Buildable>(_checked);
+            Action<string> log = _mod.Verbose ? (Action<string>)(m => _mod.L.Info(m)) : null;
             BatchOutcome oc;
-            try { oc = GameBatch.Run(targets, op); }
+            try { oc = GameBatch.Run(targets, op, log); }
             catch (Exception e) { _mod.L.Error("batch run failed", e); return; }
 
             _mod.UiS.Toast(oc.Summary(verb), oc.Ok > 0 ? ToastKind.Success : ToastKind.Warning);
@@ -705,7 +783,7 @@ namespace FlotsamMods.BatchManager
             _confirmOp = op;
             _confirmVerb = verb;
             _confirmDeadline = Time.unscaledTime + 10f;
-            string typeName = _selected != null ? _selected.Name : "建筑";
+            string typeName = _selected != null ? _selected.Name : "全部建筑";
             _confirmLabel.text = $"确认对 {_checked.Count} 座「{typeName}」执行{verb}？";
             if (_actionBar != null) _actionBar.gameObject.SetActive(false);
             if (_confirmBar != null) _confirmBar.gameObject.SetActive(true);

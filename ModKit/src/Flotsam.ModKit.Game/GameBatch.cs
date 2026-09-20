@@ -217,66 +217,71 @@ namespace FlotsamModKit.Game
             }
         }
 
-        public static BatchOutcome Run(IEnumerable<Buildable> targets, BatchOp op)
+        /// <summary>Runs the op over every target. When <paramref name="log"/> is given (verbose
+        /// mode), one line per building: <c>&lt;op&gt; &lt;name&gt; ok</c> or
+        /// <c>&lt;op&gt; &lt;name&gt; skip:&lt;reason&gt;</c>.</summary>
+        public static BatchOutcome Run(IEnumerable<Buildable> targets, BatchOp op, Action<string> log = null)
         {
             var oc = new BatchOutcome();
             if (targets == null) return oc;
+            string opName = op.ToString();
             foreach (var b in targets)
             {
                 if (b == null) continue;
-                try { RunOne(b, op, oc); }
-                catch (Exception e) { oc.Skip("异常:" + e.GetType().Name); }
+                string reason;
+                try { reason = RunOne(b, op); }
+                catch (Exception e) { reason = "异常:" + e.GetType().Name; }
+                if (reason == null) oc.Ok++;
+                else oc.Skip(reason);
+                if (log != null)
+                    log(opName + " " + GameBuildings.NameOf(b) + (reason == null ? " ok" : " skip:" + reason));
             }
             return oc;
         }
 
-        private static void RunOne(Buildable b, BatchOp op, BatchOutcome oc)
+        /// <summary>Returns null on success, otherwise the skip reason (Run does the counting).</summary>
+        private static string RunOne(Buildable b, BatchOp op)
         {
             switch (op)
             {
                 case BatchOp.Salvage:
-                    if (!SupportsDeconstruct(b)) { oc.Skip("不支持拆除"); return; }
-                    if (IsSalvaging(b)) { oc.Skip("已在拆除中"); return; }
-                    if (IsUpgrading(b)) { oc.Skip("升级中"); return; }
-                    if (b.CanBeDeconstructed(out _)) { b.Salvage(); oc.Ok++; }
-                    else oc.Skip(PhaseReason(b));
-                    return;
+                    if (!SupportsDeconstruct(b)) return "不支持拆除";
+                    if (IsSalvaging(b)) return "已在拆除中";
+                    if (IsUpgrading(b)) return "升级中";
+                    if (b.CanBeDeconstructed(out _)) { b.Salvage(); return null; }
+                    return PhaseReason(b);
 
                 case BatchOp.CancelSalvage:
-                    if (!IsSalvaging(b)) { oc.Skip("未在拆除中"); return; }
+                    if (!IsSalvaging(b)) return "未在拆除中";
                     b.CancelDeconstruction();
-                    oc.Ok++;
-                    return;
+                    return null;
 
                 case BatchOp.Upgrade:
-                    if (!SupportsUpgrade(b)) { oc.Skip("无升级"); return; }
-                    if (IsUpgrading(b)) { oc.Skip("已在升级中"); return; }
-                    if (CanUpgradeNow(b)) { b.Upgrade(); oc.Ok++; }
-                    else oc.Skip("资源不足/未解锁");
-                    return;
+                    if (!SupportsUpgrade(b)) return "无升级";
+                    if (IsUpgrading(b)) return "已在升级中";
+                    if (CanUpgradeNow(b)) { b.Upgrade(); return null; }
+                    return "资源不足/未解锁";
 
                 case BatchOp.CancelUpgrade:
-                    if (!IsUpgrading(b)) { oc.Skip("未在升级中"); return; }
+                    if (!IsUpgrading(b)) return "未在升级中";
                     b.CancelUpgrade();
-                    oc.Ok++;
-                    return;
+                    return null;
 
                 case BatchOp.Activate:
-                    if (!SupportsToggle(b)) { oc.Skip("不支持开关"); return; }
-                    if (b.BuildPhase != BuildPhase.Finished) { oc.Skip("未建成"); return; }
-                    if (b.IsActive) { oc.Skip("已启用"); return; }
+                    if (!SupportsToggle(b)) return "不支持开关";
+                    if (b.BuildPhase != BuildPhase.Finished) return "未建成";
+                    if (b.IsActive) return "已启用";
                     b.Activate();
-                    oc.Ok++;
-                    return;
+                    return null;
 
                 case BatchOp.Deactivate:
-                    if (!SupportsToggle(b)) { oc.Skip("不支持开关"); return; }
-                    if (b.BuildPhase != BuildPhase.Finished) { oc.Skip("未建成"); return; }
-                    if (!b.IsActive) { oc.Skip("已停用"); return; }
+                    if (!SupportsToggle(b)) return "不支持开关";
+                    if (b.BuildPhase != BuildPhase.Finished) return "未建成";
+                    if (!b.IsActive) return "已停用";
                     b.Deactivate();
-                    oc.Ok++;
-                    return;
+                    return null;
             }
+            return null;
         }
 
         private static string PhaseReason(Buildable b)

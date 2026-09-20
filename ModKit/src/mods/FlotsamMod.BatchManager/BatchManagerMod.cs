@@ -22,6 +22,7 @@ namespace FlotsamMods.BatchManager
         internal float Zoom = 0.6f;
         internal bool SortByDistance;
         internal bool IncludeUnfinished = true;
+        internal bool HideAfterFocus;
         internal bool Verbose;
 
         internal ILog L => Log;
@@ -37,7 +38,13 @@ namespace FlotsamMods.BatchManager
             Zoom = Mathf.Clamp(Config.Get("zoomLevel", 0.6f), 0.05f, 3f);
             SortByDistance = Config.Get("sortByDistance", false);
             IncludeUnfinished = Config.Get("includeUnfinished", true);
+            HideAfterFocus = Config.Get("hideAfterFocus", false);
             Verbose = Config.Get("verbose", false);
+            if (Config.Get("schema", 0) < 1)
+            {
+                Config.Set("schema", 1);
+                Config.Save();
+            }
         }
 
         public override void OnEnable()
