@@ -1,0 +1,13 @@
+{
+  "showPanel": "0",
+  "button.x": "365.25",
+  "button.y": "-2",
+  "tugCapacityPct": "100",
+  "weightEnergyPct": "45",
+  "generatorPct": "189",
+  "beautyPosMoralePct": "100",
+  "active": "1",
+  "beautyNegBuildPct": "60",
+  "beautyPosBuildPct": "199",
+  "beautyNegMoralePct": "100"
+}

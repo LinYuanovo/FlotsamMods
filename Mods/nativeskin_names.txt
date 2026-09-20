@@ -198,6 +198,7 @@ Icon_Inv_Wheat_80x80
 Icon_Inv_WoodGoods_80x80
 Icon_Locked
 Icon_Malfunction_BirdLeaving
+Icon_Malfunction_Exporting
 Icon_Malfunction_Importing
 Icon_Malfunction_NoQueue
 Icon_Malfunction_NotExporting
@@ -311,13 +312,16 @@ Icon_Specialist_Farmer_128x128
 Icon_Specialist_RadioTechnician_128x128
 Icon_Status_BeingASeagull
 Icon_Status_Birdhomeless
+Icon_Status_Crafting
 Icon_Status_Death
 Icon_Status_Disease
-Icon_Status_GoingToTown
 Icon_Status_Homeless
 Icon_Status_Hunger
+Icon_Status_Idle
 Icon_Status_Landmark
+Icon_Status_Learning
 Icon_Status_MortalDanger
+Icon_Status_Researching
 Icon_Status_Thirst
 Icon_SurvivalGuide_Footprint
 Icon_SurvivalGuide_Search
