@@ -167,6 +167,9 @@ namespace FlotsamMods.GameplayTweaks
 
         public void Destroy()
         {
+            // A focused number field torn down mid-edit would otherwise leave the game stuck in
+            // its Typing state; force-clear it before the fields go away.
+            GameUi.ResetTyping();
             _bound.Clear();
             if (_window != null) _window.Destroy();
             if (_overlay != null)
@@ -186,7 +189,9 @@ namespace FlotsamMods.GameplayTweaks
         {
             _visible = value;
             if (_window != null) _window.Visible = value;
-            if (value) SyncFromState();
+            // Hiding while a number field is focused must not leave the game stuck in Typing.
+            if (!value) GameUi.ResetTyping();
+            else SyncFromState();
         }
 
         public void Toggle() => SetVisible(!_visible);
@@ -212,7 +217,7 @@ namespace FlotsamMods.GameplayTweaks
             var row = GameUi.SliderRow(_content, label, min, max, 100f,
                                        pct => _mod.LiveSet(key, pct),
                                        pct => _mod.Commit(key, pct, label),
-                                       150f, 62f, 16f, 14);
+                                       150f, 66f, 16f, 14, 5f);
             FixedHeight(row.Root, SliderH);
             _bound.Add(new Bound { Key = key, Row = row });
         }

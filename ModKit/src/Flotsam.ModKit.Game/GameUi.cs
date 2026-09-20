@@ -569,33 +569,49 @@ namespace FlotsamModKit.Game
         // ------------------------------------------------------------ slider
 
         /// <summary>
-        /// A "label [----o----] value" row built from native art: a sunken slot-sprite track, a
-        /// flat accent fill and a native handle. Click or drag anywhere on the track to set the
-        /// value. <paramref name="onChanged"/> fires live while dragging (apply the effect there);
-        /// <paramref name="onCommit"/> fires once on release (persist / log there), so a slider can
-        /// feel immediate without thrashing the config file or flooding the log. The row stretches
-        /// to its parent's width; the caller positions it. The readout is formatted by
-        /// <paramref name="format"/> (default: whole percent).
+        /// A "label [----o----] [value]%" row built from native art: a sunken slot-sprite track, a
+        /// flat accent fill, a native handle, and an editable integer field for the value. Drag or
+        /// click the track, or type a number and press Enter / click away. Values snap to
+        /// <paramref name="step"/> (0 = free). <paramref name="onChanged"/> fires live while dragging
+        /// (apply the effect there); <paramref name="onCommit"/> fires once on release or on field
+        /// commit (persist / log there), so a slider feels immediate without thrashing the config
+        /// file or flooding the log. The row stretches to its parent's width; the caller positions it.
         /// </summary>
         public static UiSliderRow SliderRow(Transform parent, string label, float min, float max, float value,
                                             Action<float> onChanged, Action<float> onCommit = null,
-                                            float labelWidth = 176f, float valueWidth = 64f,
-                                            float trackHeight = 16f, int size = 14,
-                                            Func<float, string> format = null)
+                                            float labelWidth = 176f, float valueWidth = 66f,
+                                            float trackHeight = 16f, int size = 14, float step = 0f)
         {
             var row = new UiSliderRow { Min = min, Max = max };
             row.Root = NewUi("SliderRow", parent);
             row.Rect = Rect(row.Root);
 
             row.Label = Label(row.Root.transform, label, size, TextColor, TextAnchor.MiddleLeft);
+            // Pivot sits on the anchor edge, so anchoredPosition must be zero or the box is pushed
+            // inward by half its width (which used to slide the value area under the track).
             Anchor(Rect(row.Label.gameObject), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f),
-                   new Vector2(labelWidth * 0.5f, 0f), new Vector2(labelWidth, trackHeight + 8f));
+                   Vector2.zero, new Vector2(labelWidth, trackHeight + 8f));
 
-            row.ValueText = Label(row.Root.transform, "", size, Accent, TextAnchor.MiddleRight);
-            Anchor(Rect(row.ValueText.gameObject), new Vector2(1f, 0.5f), new Vector2(1f, 0.5f),
-                   new Vector2(-valueWidth * 0.5f, 0f), new Vector2(valueWidth, trackHeight + 8f));
+            // Value area (right): an editable integer field plus a fixed "%" suffix.
+            var valueGo = NewUi("Value", row.Root.transform);
+            Anchor(Rect(valueGo), new Vector2(1f, 0.5f), new Vector2(1f, 0.5f),
+                   Vector2.zero, new Vector2(valueWidth, trackHeight + 8f));
 
-            // Track stretches between the label and the value readout.
+            var suffix = Label(valueGo.transform, "%", size, DimText, TextAnchor.MiddleLeft);
+            Anchor(Rect(suffix.gameObject), new Vector2(1f, 0.5f), new Vector2(1f, 0.5f),
+                   Vector2.zero, new Vector2(15f, trackHeight + 8f));
+
+            var input = NumberInput(valueGo.transform, size, out var valText);
+            var irt = Rect(input.gameObject);
+            irt.anchorMin = new Vector2(0f, 0f);
+            irt.anchorMax = new Vector2(1f, 1f);
+            irt.pivot = new Vector2(0.5f, 0.5f);
+            irt.offsetMin = new Vector2(0f, 0f);
+            irt.offsetMax = new Vector2(-17f, 0f);
+            row.ValueInput = input;
+            row.ValueText = valText;
+
+            // Track stretches between the label and the value area.
             var trackGo = NewUi("Track", row.Root.transform, typeof(Image));
             SpriteImage(trackGo, NativeSkin.SlotSprite, SunkenBg,
                         NativeSkin.SlotSprite != null ? new Color(1f, 1f, 1f, 0.92f) : (Color?)null);
@@ -642,14 +658,98 @@ namespace FlotsamModKit.Game
             drag.HandleWidth = handleW;
             drag.Min = min;
             drag.Max = max;
-            drag.ValueText = row.ValueText;
+            drag.Step = step;
+            drag.ValueInput = input;
             drag.OnChanged = onChanged;
             drag.OnCommit = onCommit;
-            drag.Format = format;
             row.Drag = drag;
+
+            // Typing a number applies on Enter / deselect, and holds the game in its Typing state so
+            // keybinds (and the town-mover) ignore the keystrokes.
+            input.onEndEdit.AddListener(drag.ApplyInput);
+            var relay = input.gameObject.AddComponent<InputFocusRelay>();
+            relay.Selected = PushTyping;
+            relay.Deselected = PopTyping;
 
             drag.SetValue(Mathf.Clamp(value, min, max), false);
             return row;
+        }
+
+        /// <summary>A small right-aligned integer field with native chrome (used for slider values).</summary>
+        public static TMP_InputField NumberInput(Transform parent, int size, out TMP_Text text)
+        {
+            var root = NewUi("NumberInput", parent);
+            var bg = root.AddComponent<Image>();
+            if (IsSliced(NativeSkin.SlotSprite))
+            {
+                bg.sprite = NativeSkin.SlotSprite;
+                bg.type = Image.Type.Sliced;
+                bg.color = new Color(1f, 1f, 1f, 0.95f);
+            }
+            else bg.color = new Color(1f, 1f, 1f, 0.9f);
+            AddBorder(root.transform);
+
+            var area = NewUi("Text Area", root.transform, typeof(RectMask2D));
+            Stretch(Rect(area), 4f, 1f, 4f, 1f);
+
+            text = Label(area.transform, "", size, TextColor, TextAnchor.MiddleRight);
+            Stretch(Rect(text.gameObject));
+
+            var input = root.AddComponent<TMP_InputField>();
+            input.targetGraphic = bg;
+            input.textViewport = Rect(area);
+            input.textComponent = text;
+            input.lineType = TMP_InputField.LineType.SingleLine;
+            input.contentType = TMP_InputField.ContentType.IntegerNumber;
+            input.characterLimit = 5;
+            input.fontAsset = UiFont;
+            return input;
+        }
+
+        // ------------------------------------------------------------ typing state
+
+        private static int _typingDepth;
+        private static UIState _typingRestore;
+
+        /// <summary>
+        /// Puts the game in its Typing state so keybinds and the town-mover ignore keystrokes while
+        /// the player edits a mod text field. Reference-counted so overlapping focus (clicking
+        /// straight from one field into another) never drops the state early.
+        /// </summary>
+        public static void PushTyping()
+        {
+            try
+            {
+                if (_typingDepth++ == 0)
+                {
+                    _typingRestore = UIManager.State;
+                    if (_typingRestore != UIState.Typing) UIManager.SetState(UIState.Typing);
+                }
+            }
+            catch { }
+        }
+
+        public static void PopTyping()
+        {
+            try
+            {
+                if (_typingDepth <= 0) return;
+                if (--_typingDepth == 0 && UIManager.State == UIState.Typing)
+                    UIManager.SetState(_typingRestore);
+            }
+            catch { }
+        }
+
+        /// <summary>Force-clears the typing state (call when a panel with fields is torn down).</summary>
+        public static void ResetTyping()
+        {
+            try
+            {
+                if (_typingDepth > 0 && UIManager.State == UIState.Typing)
+                    UIManager.SetState(_typingRestore);
+            }
+            catch { }
+            _typingDepth = 0;
         }
 
         // ------------------------------------------------------------ windows
@@ -1367,13 +1467,15 @@ namespace FlotsamModKit.Game
         }
     }
 
-    /// <summary>A label + native-skinned draggable slider + value readout, as one row.</summary>
+    /// <summary>A label + native-skinned draggable slider + editable value readout, as one row.</summary>
     public sealed class UiSliderRow
     {
         public GameObject Root;
         public RectTransform Rect;
         public TMPro.TMP_Text Label;
+        /// <summary>The number field's text component (colour it to reflect state).</summary>
         public TMPro.TMP_Text ValueText;
+        public TMPro.TMP_InputField ValueInput;
         public SliderDrag Drag;
         public float Min;
         public float Max;
@@ -1391,9 +1493,10 @@ namespace FlotsamModKit.Game
     /// <summary>
     /// Click/drag-to-set slider built on the kit's own primitives instead of UGUI's Slider, so the
     /// fill and handle are positioned directly and stay correct under a uniformly scaled window
-    /// body. <see cref="OnChanged"/> fires on every value change (live), <see cref="OnCommit"/>
-    /// only when the pointer is released, so callers can apply an effect immediately but persist
-    /// and log just the final value.
+    /// body. Values snap to <see cref="Step"/> when it is set. <see cref="OnChanged"/> fires on every
+    /// value change (live); <see cref="OnCommit"/> fires when the pointer is released OR the paired
+    /// number field (<see cref="ValueInput"/>) is committed, so callers apply effects immediately but
+    /// persist and log only the final value. The field and the slider stay in sync both ways.
     /// </summary>
     public sealed class SliderDrag : MonoBehaviour, IPointerDownHandler, IDragHandler, IPointerUpHandler
     {
@@ -1402,17 +1505,22 @@ namespace FlotsamModKit.Game
         public RectTransform Handle;
         public float HandleWidth = 20f;
         public float Min, Max;
-        public TMPro.TMP_Text ValueText;
+
+        /// <summary>Snap increment; 0 disables snapping.</summary>
+        public float Step = 0f;
+
+        /// <summary>Paired editable readout, kept in sync both ways.</summary>
+        public TMPro.TMP_InputField ValueInput;
+
         public Action<float> OnChanged;
         public Action<float> OnCommit;
-        public Func<float, string> Format;
 
         public float Value { get; private set; }
         private bool _dragging;
 
         public void SetValue(float value, bool notify)
         {
-            value = Mathf.Clamp(value, Min, Max);
+            value = Mathf.Clamp(Quantize(value), Min, Max);
             bool changed = Mathf.Abs(value - Value) > 0.0001f;
             Value = value;
             UpdateVisuals();
@@ -1421,6 +1529,13 @@ namespace FlotsamModKit.Game
                 try { if (OnChanged != null) OnChanged(Value); } catch { }
             }
         }
+
+        private float Quantize(float v)
+        {
+            return Step > 0.0001f ? Mathf.Round(v / Step) * Step : v;
+        }
+
+        private string ValueString() => Mathf.RoundToInt(Value).ToString();
 
         private void UpdateVisuals()
         {
@@ -1431,8 +1546,9 @@ namespace FlotsamModKit.Game
             float x = HandleWidth * 0.5f + t * usable;
             if (Fill != null) Fill.sizeDelta = new Vector2(x, Fill.sizeDelta.y);
             if (Handle != null) Handle.anchoredPosition = new Vector2(x, 0f);
-            if (ValueText != null)
-                ValueText.text = Format != null ? Format(Value) : Mathf.RoundToInt(Value) + "%";
+            // Never fight the player while they are typing in the field.
+            if (ValueInput != null && !ValueInput.isFocused && ValueInput.text != ValueString())
+                ValueInput.text = ValueString();
         }
 
         /// <summary>Re-reads the track width (call after a resize so the handle sits correctly).</summary>
@@ -1446,6 +1562,18 @@ namespace FlotsamModKit.Game
         private void OnRectTransformDimensionsChange()
         {
             if (Track != null) UpdateVisuals();
+        }
+
+        /// <summary>Number-field commit: parse, clamp, snap, apply live, then persist/log.</summary>
+        public void ApplyInput(string text)
+        {
+            float v;
+            if (float.TryParse(text, out v))
+            {
+                SetValue(v, true);
+                try { if (OnCommit != null) OnCommit(Value); } catch { }
+            }
+            if (ValueInput != null && ValueInput.text != ValueString()) ValueInput.text = ValueString();
         }
 
         public void OnPointerDown(PointerEventData eventData)
