@@ -12,12 +12,20 @@
 
 ## 验证方式与 git 说明（执行前必读）
 
-- 本仓库 `F:\Game\Flotsam` 是游戏安装目录，git 仓库**没有任何提交**、无 .gitignore（整个游戏目录都是 untracked）。**因此本计划不含 git 提交步骤**；每个任务以「编译通过 + （可进游戏的任务）游戏内验收 + 日志检查」为完成检查点。若用户之后要求版本管理，建议单独初始化仅含 `ModKit/`、`Mods/*/mod.json` 的仓库。
+- **git（用户已确认要提交）**：仓库已建初始提交（.gitignore 排除游戏运行时/构建产物）。提交由编排者统一执行（并行子代理不碰 git，避免 index.lock 竞争），提交粒度见下方编排。
+- **并行编排（用户指定：不冲突的文件并行派子代理）**：
+  - **Wave 1（两个子代理并行，文件集完全不相交）**：
+    - 代理 P（电网轨）：Task 1 全部（EnergyPlanner.cs + tools/EnergyPlanner.Tests，`dotnet run` 跑到 11 绿）+ Task 2 Step 2.1（GameEnergy.cs）+ Task 4 Step 4.1/4.2/4.3（PowerLink 工程文件与 mod.json）。
+    - 代理 Q（批量轨）：Task 3 Step 3.1（GameBatch.cs）+ Task 5 Step 5.1/5.2/5.3/5.4（BatchManager 工程文件与 mod.json）。
+    - **两代理禁令**：不跑 build.ps1、不编译 `Flotsam.ModKit.Game`/任何 mod csproj（共享工程会编到对方半成品文件；集成编译在 Wave 2）、不碰 git、不改 build.ps1/文档/他人文件。代理 P 只允许 `dotnet run --project ModKit\tools\EnergyPlanner.Tests`（该工程只链接 EnergyPlanner.cs，完全隔离）。
+  - **Wave 2（编排者串行）**：改 build.ps1（$mods 加两行）→ `build.ps1 -NoInstall` 集成编译并修复所有编译错误 → 重跑算法测试 → `build.ps1` 安装 → 分轨提交（planner+tests / build.ps1 / powerlink / batchmanager）→ 规格审查 + 代码质量审查（子代理），问题回给对应轨修复。
+  - **Wave 3**：Task 6 文档更新 + 提交 → 用户游戏内验收（Task 4.6/5.7/6.4 清单）。
 - 编译命令统一：`pwsh -File F:\Game\Flotsam\ModKit\build.ps1 -NoInstall`（只编译全部工程）。
 - 安装命令：`pwsh -File F:\Game\Flotsam\ModKit\build.ps1`（编译 + 拷 DLL 到 `Mods\`）。**安装前游戏必须关闭**（DLL 被占用会拷贝失败）。
 - 游戏内验证需要人工：启动 `Flotsam.exe` 进存档操作，然后读 `F:\Game\Flotsam\BepInEx\LogOutput.log`（每次启动覆盖）。执行到这些步骤时提示用户操作，再读日志核对。
 - **改代码后必须重启游戏才生效**（Mono 程序集常驻）。
 - 写 .cs/.json 文件一律用编辑工具（Write/Edit），**禁止 PowerShell Set-Content 打补丁**（交接报告 §5.5 事故记录）。
+- 下文各 Task 内的步骤仍按序有效，但「编译/安装/提交」类步骤归 Wave 2/3 统一执行；Task 4.4/5.5（build.ps1）由编排者在 Wave 2 一次改完。
 
 ## 文件结构总览
 
