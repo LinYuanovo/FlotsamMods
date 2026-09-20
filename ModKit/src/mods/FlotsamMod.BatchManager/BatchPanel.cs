@@ -278,6 +278,7 @@ namespace FlotsamMods.BatchManager
 
         public void Destroy()
         {
+            PopTyping();
             GameBatch.HighlightAll(_checked, false);
             _checked.Clear();
             _checkedOrder.Clear();
@@ -536,23 +537,42 @@ namespace FlotsamMods.BatchManager
             if (_selected == null)
             {
                 // 「全部建筑」：按左栏顺序拼接所有可见型号的实例，行名带型号前缀
+                int total = 0;
                 foreach (var g in VisibleGroups())
                     foreach (var b in g.Items)
                     {
                         if (b == null) continue;
+                        total++;
+                        if (_rightItems.Count >= _mod.MaxRows) continue;
                         _rightItems.Add(b);
                         AddRightRow(b, _rightItems.Count - 1, g.Name);
                     }
+                if (total > _rightItems.Count) AddTruncatedRow(total);
                 return;
             }
 
+            int count = 0;
             for (int i = 0; i < _selected.Items.Count; i++)
             {
                 var b = _selected.Items[i];
                 if (b == null) continue;
+                count++;
+                if (_rightItems.Count >= _mod.MaxRows) continue;
                 _rightItems.Add(b);
                 AddRightRow(b, _rightItems.Count - 1, null);
             }
+            if (count > _rightItems.Count) AddTruncatedRow(count);
+        }
+
+        /// <summary>Non-interactive hint row shown when the list was cut at maxRows.</summary>
+        private void AddTruncatedRow(int total)
+        {
+            var row = GameUi.Row(_rightContent, RowHeight, GameUi.RowBgAlt);
+            var label = GameUi.Label(row.transform, $"…… 已截断，共 {total} 座（可用搜索/选型号缩小范围）",
+                                     12, GameUi.DimText, TextAnchor.MiddleLeft);
+            label.raycastTarget = false;
+            GameUi.Stretch(GameUi.Rect(label.gameObject), 8f, 1f, 8f, 1f);
+            _rightRows.Add(row);
         }
 
         private void AddRightRow(Buildable b, int index, string typeName)
@@ -766,7 +786,7 @@ namespace FlotsamMods.BatchManager
 
         private void DoRun(BatchOp op, string verb)
         {
-            var targets = new List<Buildable>(_checked);
+            var targets = new List<Buildable>(_checkedOrder);   // stable click order = jump/log order
             Action<string> log = _mod.Verbose ? (Action<string>)(m => _mod.L.Info(m)) : null;
             BatchOutcome oc;
             try { oc = GameBatch.Run(targets, op, log); }
@@ -823,7 +843,9 @@ namespace FlotsamMods.BatchManager
             try
             {
                 if (!_typingPushed) return;
-                UIManager.SetState(_stateBeforeTyping);
+                // Only restore while the game is still in Typing: if something else changed the
+                // state in the meantime, writing back the stale value would clobber it.
+                if (UIManager.State == UIState.Typing) UIManager.SetState(_stateBeforeTyping);
                 _typingPushed = false;
             }
             catch { }

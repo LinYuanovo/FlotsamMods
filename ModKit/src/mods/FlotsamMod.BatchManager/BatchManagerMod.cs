@@ -16,9 +16,11 @@ namespace FlotsamMods.BatchManager
         private IHudButton _button;
         private GameObject _overlay;
         private BatchPanel _panel;
+        private bool _iconSet;
 
         internal bool HighlightChecked = true;
         internal int ConfirmThreshold = 5;
+        internal int MaxRows = 400;
         internal float Zoom = 0.6f;
         internal bool SortByDistance;
         internal bool IncludeUnfinished = true;
@@ -35,6 +37,7 @@ namespace FlotsamMods.BatchManager
             _hotkey = Keybinds.Register("batch.toggle", KeyCode.Alpha1, "打开批量管理(Ctrl+1)");
             HighlightChecked = Config.Get("highlightChecked", true);
             ConfirmThreshold = Mathf.Max(1, Config.Get("confirmThreshold", 5));
+            MaxRows = Mathf.Max(1, Config.Get("maxRows", 400));
             Zoom = Mathf.Clamp(Config.Get("zoomLevel", 0.6f), 0.05f, 3f);
             SortByDistance = Config.Get("sortByDistance", false);
             IncludeUnfinished = Config.Get("includeUnfinished", true);
@@ -57,7 +60,7 @@ namespace FlotsamMods.BatchManager
             _button = Ui.AddHudButton("batchmanager.open", "批量管理", Toggle,
                                       HudAnchor.RightMiddle, Config, "button");
             _button.Visible = true;
-            _button.SetIcon(NativeSkin.Find("build", "hammer", "construction"));
+            // The icon is set later in OnTick: harvested sprites only exist inside a save.
 
             Log.Info("batch manager ready");
         }
@@ -66,6 +69,7 @@ namespace FlotsamMods.BatchManager
         {
             try { _button?.Destroy(); } catch { }
             _button = null;
+            _iconSet = false;
             Teardown();
             Log.Info("batch manager removed");
         }
@@ -80,6 +84,11 @@ namespace FlotsamMods.BatchManager
         public override void OnTick()
         {
             EnsureUi();
+            if (!_iconSet && GameApi.IsPlaying && NativeSkin.Available)
+            {
+                _iconSet = true;
+                try { _button?.SetIcon(NativeSkin.Find("build", "hammer", "construction")); } catch { }
+            }
             if (_hotkey != null && _hotkey.IsDown && GameKeys.GetCtrlHeld()) Toggle();
             try { _panel?.Tick(); } catch { }
         }
