@@ -238,6 +238,22 @@ namespace FlotsamModKit.Game
             return n.Capacity - n.Used - planned > 0;
         }
 
+        /// <summary>Length tolerance for treating two candidate edges as equal-length ties.</summary>
+        private const float TieEpsilon = 1e-3f;
+
+        /// <summary>Design §4.2.1 tie-break among equal-length eligible edges: the outside
+        /// (not-yet-connected) end with more free slots wins, then Building over Pole, then
+        /// the lower edge key. Returns true when the candidate beats the current best.</summary>
+        private static bool TieBetter(PlannerNode candOut, int candFree, long candKey,
+                                      PlannerNode bestOut, int bestFree, long bestKey)
+        {
+            if (candFree != bestFree) return candFree > bestFree;
+            bool candBuilding = candOut.Kind == PlannerKind.Building;
+            bool bestBuilding = bestOut.Kind == PlannerKind.Building;
+            if (candBuilding != bestBuilding) return candBuilding;
+            return candKey < bestKey;
+        }
+
         /// <summary>Component-level Prim: repeatedly join the cheapest edge between the powered
         /// network and an unpowered grid, merging whole grids exactly like EnergyGrid.Connect.</summary>
         private static List<PlannerEdge> GrowIncremental(PlannerNode[] nodes, PlannerGrid[] grids,
@@ -264,10 +280,36 @@ namespace FlotsamModKit.Game
                     if (powered[ra] == powered[rb]) continue;   // exactly one side must be powered
                     if (!HasFreeSlot(nodes[e.A], used[e.A])) continue;
                     if (!HasFreeSlot(nodes[e.B], used[e.B])) continue;
-                    tree.Add(e);
-                    used[e.A]++;
-                    used[e.B]++;
-                    if (powered[ra]) parent[rb] = ra; else parent[ra] = rb;
+
+                    // Design §4.2.1 tie-break: scan the equal-length tail (cand is sorted by
+                    // length) and prefer the eligible edge whose outside end has more free
+                    // slots, then Building over Pole, then the lower key.
+                    var best = e;
+                    int bestRa = ra, bestRb = rb;
+                    int bestOut = powered[ra] ? e.B : e.A;
+                    int bestFree = FreeIncremental(nodes[bestOut], used[bestOut]);
+                    for (int j = i + 1; j < cand.Count && cand[j].Length - e.Length <= TieEpsilon; j++)
+                    {
+                        var c = cand[j];
+                        if (c.Exists) continue;
+                        int cra = Find(parent, nodes[c.A].GridId);
+                        int crb = Find(parent, nodes[c.B].GridId);
+                        if (cra == crb) continue;
+                        if (powered[cra] == powered[crb]) continue;
+                        if (!HasFreeSlot(nodes[c.A], used[c.A])) continue;
+                        if (!HasFreeSlot(nodes[c.B], used[c.B])) continue;
+                        int cOut = powered[cra] ? c.B : c.A;
+                        int cFree = FreeIncremental(nodes[cOut], used[cOut]);
+                        if (TieBetter(nodes[cOut], cFree, c.Key, nodes[bestOut], bestFree, best.Key))
+                        {
+                            best = c; bestRa = cra; bestRb = crb; bestOut = cOut; bestFree = cFree;
+                        }
+                    }
+
+                    tree.Add(best);
+                    used[best.A]++;
+                    used[best.B]++;
+                    if (powered[bestRa]) parent[bestRb] = bestRa; else parent[bestRa] = bestRb;
                     progress = true;
                     break;                                       // rescan from the shortest edge
                 }
@@ -280,6 +322,18 @@ namespace FlotsamModKit.Game
         {
             while (parent[x] != x) { parent[x] = parent[parent[x]]; x = parent[x]; }
             return x;
+        }
+
+        /// <summary>Incremental-mode free slots: capacity minus existing minus planned.</summary>
+        private static int FreeIncremental(PlannerNode n, int planned)
+        {
+            return n.Capacity - n.Used - planned;
+        }
+
+        /// <summary>Rebuild ordering weight: existing edges count as KeepBonus shorter.</summary>
+        private static float Weight(PlannerEdge e)
+        {
+            return e.Length * (e.Exists ? 1f - KeepBonus : 1f);
         }
 
         /// <summary>Iteratively drop tree edges whose leaf is a pole: poles only earn a cable
@@ -321,9 +375,7 @@ namespace FlotsamModKit.Game
             var order = new List<PlannerEdge>(cand);
             order.Sort((x, y) =>
             {
-                float wx = x.Length * (x.Exists ? 1f - KeepBonus : 1f);
-                float wy = y.Length * (y.Exists ? 1f - KeepBonus : 1f);
-                int c = wx.CompareTo(wy);
+                int c = Weight(x).CompareTo(Weight(y));
                 return c != 0 ? c : x.Key.CompareTo(y.Key);
             });
 
@@ -359,17 +411,41 @@ namespace FlotsamModKit.Game
             while (progress)
             {
                 progress = false;
-                foreach (var e in order)
+                for (int i = 0; i < order.Count; i++)
                 {
+                    var e = order[i];
                     if (inNet[e.A] == inNet[e.B]) continue;
                     int inside = inNet[e.A] ? e.A : e.B;
                     int outside = inNet[e.A] ? e.B : e.A;
                     if (used[inside] >= nodes[inside].Capacity) continue;
                     if (used[outside] >= nodes[outside].Capacity) continue;
-                    tree.Add(e);
-                    used[inside]++;
-                    used[outside]++;
-                    inNet[outside] = true;
+
+                    // Design §4.2.1 tie-break among equal-weight edges (order is sorted):
+                    // outside end with more free slots (rebuild: Capacity - used), then
+                    // Building over Pole, then lower key.
+                    var best = e;
+                    int bestOut = outside;
+                    int bestFree = nodes[outside].Capacity - used[outside];
+                    float w = Weight(e);
+                    for (int j = i + 1; j < order.Count && Weight(order[j]) - w <= TieEpsilon; j++)
+                    {
+                        var c = order[j];
+                        if (inNet[c.A] == inNet[c.B]) continue;
+                        int cIn = inNet[c.A] ? c.A : c.B;
+                        int cOut = inNet[c.A] ? c.B : c.A;
+                        if (used[cIn] >= nodes[cIn].Capacity) continue;
+                        if (used[cOut] >= nodes[cOut].Capacity) continue;
+                        int cFree = nodes[cOut].Capacity - used[cOut];
+                        if (TieBetter(nodes[cOut], cFree, c.Key, nodes[bestOut], bestFree, best.Key))
+                        {
+                            best = c; bestOut = cOut; bestFree = cFree;
+                        }
+                    }
+
+                    tree.Add(best);
+                    used[best.A]++;
+                    used[best.B]++;
+                    inNet[bestOut] = true;
                     progress = true;
                     break;
                 }

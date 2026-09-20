@@ -45,6 +45,7 @@ namespace FlotsamMods.PowerLink
             _connectPoles = Config.Get("connectPolesToGrid", true);
             _merge = Config.Get("mergePoweredGrids", true);
             _verbose = Config.Get("verbose", false);
+            if (Config.Get("schema", 0) < 1) { Config.Set("schema", 1); Config.Save(); }
         }
 
         public override void OnEnable()
@@ -136,7 +137,8 @@ namespace FlotsamMods.PowerLink
                     connectPoles: _connectPoles,
                     mergePowered: _merge,
                     verbose: _verbose,
-                    log: m => Log.Info(m));
+                    log: m => Log.Info(m),
+                    warnLog: m => Log.Warn(m));
 
                 _nextHeartbeat = Time.realtimeSinceStartup + _interval;
 
@@ -145,14 +147,17 @@ namespace FlotsamMods.PowerLink
                 if (manual || res.HasChanges)
                 {
                     string text = res.SummaryText();
+                    if (!manual && res.HasChanges) text = "自动连网：" + text;   // design §4.3
                     float now = Time.realtimeSinceStartup;
-                    if (text != _lastToast || now - _lastToastAt > 5f)
+                    // Manual runs bypass the 5s same-text dedupe; the summary log line is
+                    // emitted exactly when the toast is (design §5: no toast-duplicate lines).
+                    if (manual || text != _lastToast || now - _lastToastAt > 5f)
                     {
                         Ui.Toast(text, res.HasChanges ? ToastKind.Success : ToastKind.Info);
                         _lastToast = text;
                         _lastToastAt = now;
+                        Log.Info("run: " + res.LogLine());
                     }
-                    Log.Info("run: " + res.LogLine());
                 }
             }
             catch (Exception e)

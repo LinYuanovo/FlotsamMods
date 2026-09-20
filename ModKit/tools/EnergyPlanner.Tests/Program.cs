@@ -19,6 +19,8 @@ internal static class Program
         Run("T9 智能互济合并", T9SmartMerge);
         Run("T10 微小收益不翻动", T10NoChurn);
         Run("T11 无电孤岛不被拆线", T11IslandPreserved);
+        Run("T12 平手优先空槽多的端点", T12TieFreeSlots);
+        Run("T13 平手优先接建筑而非杆", T13TieBuildingOverPole);
 
         Console.WriteLine($"{_pass} passed, {_fail} failed");
         return _fail == 0 ? 0 : 1;
@@ -213,5 +215,37 @@ internal static class Program
         var res = Plan(nodes, grids, existing, optimize: true);
         Assert(res.Remove.Count == 0, "island wiring preserved");
         Assert(res.Unreachable.Count == 2, "island counts as unreachable");
+    }
+
+    // T12: 镇心(剩1槽)两侧等长(30)候选 → 平手优先外侧端点空槽多的 B1(free2 > B2 free1)
+    private static void T12TieFreeSlots()
+    {
+        var nodes = new[]
+        {
+            N(0, 0f, 0f, 4, 3, PlannerKind.Building, 0),   // 镇心：cap4 used3，仅剩 1 槽
+            N(1, 30f, 0f, 2, 0, PlannerKind.Building, 1),  // B1：free2
+            N(2, -30f, 0f, 4, 3, PlannerKind.Building, 2), // B2：free1
+        };
+        var grids = new[] { G(true), G(false), G(false) };
+        var res = Plan(nodes, grids, null);
+        Assert(res.Add.Count == 1 && HasEdge(res.Add, 0, 1),
+            $"tie goes to the end with more free slots (B1); add={res.Add.Count}");
+        Assert(res.Unreachable.Count == 1 && res.Unreachable[0] == 2, "B2 unreachable");
+    }
+
+    // T13: 镇心两侧等长(30)、外侧端点空槽相等(各2) → 规则②优先接建筑而非杆
+    private static void T13TieBuildingOverPole()
+    {
+        var nodes = new[]
+        {
+            N(0, 0f, 0f, 4, 0, PlannerKind.Building, 0),   // 镇心
+            N(1, 30f, 0f, 4, 2, PlannerKind.Pole, 1),      // 杆：cap4 used2 → free2
+            N(2, -30f, 0f, 2, 0, PlannerKind.Building, 2), // 建筑：cap2 → free2
+        };
+        var grids = new[] { G(true), G(false), G(false) };
+        var res = Plan(nodes, grids, null, poles: true);
+        Assert(res.Add.Count >= 1 && res.Add[0].Key == PlannerEdge.EdgeKey(0, 2),
+            "equal free slots → first pick must be the building edge {0,2}, not the pole");
+        Assert(HasEdge(res.Add, 0, 2), "building edge present");
     }
 }

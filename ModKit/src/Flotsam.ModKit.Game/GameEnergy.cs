@@ -214,20 +214,26 @@ namespace FlotsamModKit.Game
         /// (EnergyGrid.Connect/Disconnect dispatch the native events).
         /// </summary>
         public static EnergyRunResult RunAutoConnect(bool optimizeExisting, float gainPct, bool connectPoles,
-                                                     bool mergePowered, bool verbose, Action<string> log)
+                                                     bool mergePowered, bool verbose, Action<string> log,
+                                                     Action<string> warnLog = null)
         {
             var res = new EnergyRunResult();
             if (!Ready) { res.Blocked = true; return res; }
+            Action<string> warn = warnLog ?? log;
 
             Snapshot snap;
             try { snap = TakeSnapshot(verbose ? log : null); }
             catch (Exception e)
             {
-                if (log != null) log("snapshot failed: " + e.Message);
+                if (warn != null) warn("snapshot failed: " + e.Message);
                 res.Blocked = true;
                 return res;
             }
             if (snap == null || snap.Nodes.Length == 0) return res;
+            // Design §5 Warn level: large snapshots make the O(n²) candidate scan noticeable.
+            if (snap.Connectors.Count > 500 && warn != null)
+                warn($"snapshot: {snap.Connectors.Count} connectors (>500)，候选边扫描为 O(n²)、未做空间分桶，" +
+                     "一键连网可能短暂卡顿");
 
             PlannerResult plan;
             try
@@ -237,7 +243,7 @@ namespace FlotsamModKit.Game
             }
             catch (Exception e)
             {
-                if (log != null) log("plan failed: " + e.Message);
+                if (warn != null) warn("plan failed: " + e.Message);
                 return res;
             }
 
