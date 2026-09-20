@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using FlotsamModKit.Abstractions;
 using FlotsamModKit.Game;
 using UnityEngine;
@@ -28,7 +29,9 @@ namespace FlotsamMods.PowerLink
         private bool _merge = true;
         private bool _verbose;
 
-        private bool _running;
+        private int _connectsPerTick = 4;
+        private EnergyRunSession _session;
+        private bool _sessionManual;
         private bool _iconSet;
         private float _nextHeartbeat;
         private float _pendingAt = -1f;
@@ -46,6 +49,7 @@ namespace FlotsamMods.PowerLink
             _connectPoles = Config.Get("connectPolesToGrid", true);
             _merge = Config.Get("mergePoweredGrids", true);
             _verbose = Config.Get("verbose", false);
+            _connectsPerTick = Mathf.RoundToInt(Mathf.Clamp(Config.Get("connectsPerTick", 4f), 1f, 50f));
             if (Config.Get("schema", 0) < 1) { Config.Set("schema", 1); Config.Save(); }
         }
 
@@ -74,6 +78,7 @@ namespace FlotsamMods.PowerLink
             _autoButton = null;
             _pendingAt = -1f;
             _iconSet = false;
+            _session = null;
             Log.Info("powerlink removed");
         }
 
@@ -87,12 +92,20 @@ namespace FlotsamMods.PowerLink
         public override void OnGameEnd()
         {
             _pendingAt = -1f;
-            _running = false;
+            _session = null;   // drop any half-finished run; connectors are save-scoped anyway
         }
 
         public override void OnTick()
         {
             if (_hotkey != null && _hotkey.IsDown && GameKeys.GetCtrlHeld()) RunOnce(true);
+
+            // Drain the spread-out run a few cables per tick (crash hardening: never a big
+            // burst of Connect/Merge inside one frame).
+            if (_session != null && !_session.Done)
+            {
+                _session.Step(_connectsPerTick);
+                if (_session.Done) ReportRun(_session.Result, _sessionManual);
+            }
 
             // Icon lookup only works once the game has spawned its UI (NativeSkin harvests
             // in-game sprites), so defer it out of OnEnable, which may run at the main menu.
@@ -107,7 +120,8 @@ namespace FlotsamMods.PowerLink
                 }
             }
 
-            if (!_auto || _running) return;
+            if (!_auto) return;
+            if (_session != null && !_session.Done) return;   // run in flight, wait for it
             float now = Time.realtimeSinceStartup;
             if (_pendingAt >= 0f && now >= _pendingAt)
             {
@@ -139,48 +153,65 @@ namespace FlotsamMods.PowerLink
             Log.Info("auto mode " + (_auto ? "on" : "off"));
         }
 
+        /// <summary>Crash-diagnostic trace: one line per cable operation, flushed to disk
+        /// immediately so it survives a hard crash that loses all buffered log output.</summary>
+        private string TracePath
+        {
+            get
+            {
+                try { return Ctx != null ? Path.Combine(Ctx.ModDirectory, "trace.log") : null; }
+                catch { return null; }
+            }
+        }
+
         private void RunOnce(bool manual)
         {
-            if (_running) return;
-            _running = true;
+            if (_session != null && !_session.Done) return;   // a run is already in flight
             try
             {
-                var res = GameEnergy.RunAutoConnect(
+                _sessionManual = manual;
+                _session = GameEnergy.BeginRun(
                     optimizeExisting: manual && _optimize,   // rebuilds are manual-only (design §4.4)
                     gainPct: _gainPct,
                     connectPoles: _connectPoles,
                     mergePowered: _merge,
                     verbose: _verbose,
                     log: m => Log.Info(m),
-                    warnLog: m => Log.Warn(m));
+                    warnLog: m => Log.Warn(m),
+                    tracePath: TracePath,
+                    maxOpsPerStep: _connectsPerTick,
+                    manual: manual);
 
                 _nextHeartbeat = Time.realtimeSinceStartup + _interval;
 
-                if (res.Blocked && !manual) return;
-
-                if (manual || res.HasChanges)
-                {
-                    string text = res.SummaryText();
-                    if (!manual && res.HasChanges) text = "自动连网：" + text;   // design §4.3
-                    float now = Time.realtimeSinceStartup;
-                    // Manual runs bypass the 5s same-text dedupe; the summary log line is
-                    // emitted exactly when the toast is (design §5: no toast-duplicate lines).
-                    if (manual || text != _lastToast || now - _lastToastAt > 5f)
-                    {
-                        Ui.Toast(text, res.HasChanges ? ToastKind.Success : ToastKind.Info);
-                        _lastToast = text;
-                        _lastToastAt = now;
-                        Log.Info("run: " + res.LogLine());
-                    }
-                }
+                // Blocked or nothing to do: the session is born Done, report right away.
+                if (_session.Done) ReportRun(_session.Result, manual);
             }
             catch (Exception e)
             {
                 Log.Error("auto-connect failed", e);
             }
-            finally
+        }
+
+        private void ReportRun(EnergyRunResult res, bool manual)
+        {
+            if (res == null) return;
+            if (res.Blocked && !manual) return;
+
+            if (manual || res.HasChanges)
             {
-                _running = false;
+                string text = res.SummaryText();
+                if (!manual && res.HasChanges) text = "自动连网：" + text;   // design §4.3
+                float now = Time.realtimeSinceStartup;
+                // Manual runs bypass the 5s same-text dedupe; the summary log line is
+                // emitted exactly when the toast is (design §5: no toast-duplicate lines).
+                if (manual || text != _lastToast || now - _lastToastAt > 5f)
+                {
+                    Ui.Toast(text, res.HasChanges ? ToastKind.Success : ToastKind.Info);
+                    _lastToast = text;
+                    _lastToastAt = now;
+                    Log.Info("run: " + res.LogLine());
+                }
             }
         }
     }

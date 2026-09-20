@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Text;
 using UnityEngine;
 
@@ -61,7 +62,140 @@ namespace FlotsamModKit.Game
     }
 
     /// <summary>
-    /// Energy-grid snapshot + auto-connect runner. The only place touching game energy types;
+    /// One spread-out auto-connect run: BeginRun plans everything up front, then Step drains
+    /// the operation queue a few cables per tick so a big plan never fires dozens of
+    /// Connect/Disconnect calls inside a single frame (suspected hard-crash trigger).
+    /// Every operation writes a trace line to disk BEFORE it executes — each line opens and
+    /// closes the file, so even a hard crash (which loses the BepInEx/Unity log buffers)
+    /// leaves the exact connector pair that killed the game on disk.
+    /// </summary>
+    public sealed class EnergyRunSession
+    {
+        internal enum OpKind { Remove = 0, Add = 1, Merge = 2 }
+
+        internal struct Op
+        {
+            public OpKind Kind;
+            public PlannerEdge Edge;
+        }
+
+        /// <summary>A session that cannot finish in this wall-clock time is abandoned.</summary>
+        private const float TimeoutSeconds = 120f;
+
+        private readonly GameEnergy.Snapshot _snap;
+        private readonly List<Op> _ops;
+        private readonly EnergyRunResult _res;
+        private readonly bool _verbose;
+        private readonly Action<string> _log;
+        private readonly Action<string> _warn;
+        private readonly string _tracePath;
+        private readonly bool _traceStarted;
+        private readonly HashSet<int> _touched = new HashSet<int>();
+        private readonly float _startedAt;
+        private int _next;
+        private bool _done;
+
+        /// <summary>True once the whole queue has been executed (or the session was abandoned).</summary>
+        public bool Done => _done;
+        public EnergyRunResult Result => _res;
+
+        internal EnergyRunSession(GameEnergy.Snapshot snap, List<Op> ops, EnergyRunResult res,
+                                  bool verbose, Action<string> log, Action<string> warn,
+                                  string tracePath, bool traceStarted)
+        {
+            _snap = snap;
+            _ops = ops ?? new List<Op>();
+            _res = res;
+            _verbose = verbose;
+            _log = log;
+            _warn = warn;
+            _tracePath = tracePath;
+            _traceStarted = traceStarted;
+            _startedAt = Time.realtimeSinceStartup;
+            if (_ops.Count == 0) Finish();
+        }
+
+        /// <summary>Execute at most maxOps queued operations. Re-checks GameEnergy.Ready
+        /// before every single one; when the game stops being ready the queue simply waits
+        /// for a later tick. Abandons the rest of the queue after TimeoutSeconds.</summary>
+        public void Step(int maxOps)
+        {
+            if (_done) return;
+            if (maxOps < 1) maxOps = 1;
+
+            if (Time.realtimeSinceStartup - _startedAt > TimeoutSeconds)
+            {
+                int dropped = _ops.Count - _next;
+                _warn?.Invoke($"auto-connect session timed out ({TimeoutSeconds:0}s), dropping {dropped} pending ops");
+                if (_traceStarted)
+                    GameEnergy.TraceLine(_tracePath, $"timeout after {TimeoutSeconds:0}s, dropping {dropped} pending ops");
+                Finish();
+                return;
+            }
+
+            int executed = 0;
+            while (_next < _ops.Count && executed < maxOps)
+            {
+                if (!GameEnergy.Ready) return;   // paused/map open/left save: resume next tick
+                Execute(_ops[_next]);
+                _next++;
+                executed++;
+            }
+            if (_next >= _ops.Count) Finish();
+        }
+
+        private void Execute(Op op)
+        {
+            string desc = GameEnergy.Describe(_snap, op.Edge);
+            bool ok;
+            switch (op.Kind)
+            {
+                case OpKind.Remove:
+                    GameEnergy.TraceLine(_tracePath, "pre drop " + desc);
+                    ok = GameEnergy.TryDisconnect(_snap, op.Edge);
+                    GameEnergy.TraceLine(_tracePath, ok ? "post ok" : "post skip(not-connected)");
+                    if (ok)
+                    {
+                        _res.RemovedCables++;
+                        if (_verbose) _log?.Invoke("drop " + desc);
+                    }
+                    break;
+                case OpKind.Add:
+                    GameEnergy.TraceLine(_tracePath, "pre connect " + desc);
+                    ok = GameEnergy.TryConnect(_snap, op.Edge);
+                    GameEnergy.TraceLine(_tracePath, ok ? "post ok" : "post skip(legality)");
+                    if (ok)
+                    {
+                        _res.AddedCables++;
+                        GameEnergy.CountBuildings(_snap, op.Edge, _touched);
+                        _res.ConnectedBuildings = _touched.Count;
+                        if (_verbose) _log?.Invoke("link " + desc);
+                    }
+                    else if (_verbose) _log?.Invoke("skip(legality) " + desc);
+                    break;
+                default:
+                    GameEnergy.TraceLine(_tracePath, "pre merge " + desc);
+                    ok = GameEnergy.TryConnect(_snap, op.Edge);
+                    GameEnergy.TraceLine(_tracePath, ok ? "post ok" : "post skip(legality)");
+                    if (ok)
+                    {
+                        _res.MergedCables++;
+                        if (_verbose) _log?.Invoke("merge " + desc);
+                    }
+                    break;
+            }
+        }
+
+        private void Finish()
+        {
+            _res.ConnectedBuildings = _touched.Count;
+            if (_traceStarted) GameEnergy.TraceLine(_tracePath, "run end " + _res.LogLine());
+            _done = true;
+        }
+    }
+
+    /// <summary>
+    /// Energy-grid snapshot + auto-connect planner. The only place touching game energy types;
     /// all planning math lives in EnergyPlanner (pure, tested in tools/EnergyPlanner.Tests).
     /// Every connection re-checks the game's own legality rules right before it is made, and
     /// every call is defensive: nothing throws during scene transitions.
@@ -69,6 +203,9 @@ namespace FlotsamModKit.Game
     public static class GameEnergy
     {
         public static bool Ready => GameApi.IsPlaying && !GameApi.IsMapOpen && !GameApi.IsPaused;
+
+        /// <summary>Trace files are capped at this size; older content is dropped wholesale.</summary>
+        private const long TraceMaxBytes = 1024 * 1024;
 
         /// <summary>BuildableSettings.CableLinkRange — the game's own max cable length.</summary>
         public static float CableLinkRange()
@@ -95,7 +232,7 @@ namespace FlotsamModKit.Game
             return (float)Math.Sqrt(dx * dx + dz * dz);
         }
 
-        private sealed class Snapshot
+        internal sealed class Snapshot
         {
             public readonly List<EnergyGridConnector> Connectors = new List<EnergyGridConnector>();
             public readonly List<PlannerEdge> Existing = new List<PlannerEdge>();
@@ -103,6 +240,37 @@ namespace FlotsamModKit.Game
             public PlannerGrid[] Grids = new PlannerGrid[0];
             public float Range;
         }
+
+        // ------------------------------------------------------------- crash trace
+        // One File.AppendAllText per line = open/flush/close per line: slow-ish but the
+        // volume is tiny and it survives hard crashes that lose all buffered log output.
+
+        internal static void TraceLine(string path, string line)
+        {
+            if (string.IsNullOrEmpty(path)) return;
+            try
+            {
+                File.AppendAllText(path,
+                    DateTime.Now.ToString("HH:mm:ss.fff") + " " + line + Environment.NewLine);
+            }
+            catch { }
+        }
+
+        /// <summary>Truncates an oversized trace file, then writes the run-start line.</summary>
+        internal static void TraceRunStart(string path, string line)
+        {
+            if (string.IsNullOrEmpty(path)) return;
+            try
+            {
+                var fi = new FileInfo(path);
+                if (fi.Exists && fi.Length > TraceMaxBytes)
+                    File.WriteAllText(path, "trace truncated" + Environment.NewLine);
+            }
+            catch { }
+            TraceLine(path, line);
+        }
+
+        // ------------------------------------------------------------- snapshot
 
         private static Snapshot TakeSnapshot(Action<string> log)
         {
@@ -159,7 +327,6 @@ namespace FlotsamModKit.Game
                     if (c.EnergyGrid != null && gridIndex.TryGetValue(c.EnergyGrid, out var g)) gridId = g;
                 }
                 catch { }
-                bool isBuilding = c is EnergyGridBuildableComponent;
                 snap.Nodes[i] = new PlannerNode
                 {
                     Id = i,
@@ -167,7 +334,7 @@ namespace FlotsamModKit.Game
                     Z = positions[i].z,
                     Capacity = capacities[i],
                     Used = used,
-                    Kind = isBuilding ? PlannerKind.Building : PlannerKind.Pole,
+                    Kind = KindOf(c),
                     GridId = gridId,
                 };
             }
@@ -215,37 +382,68 @@ namespace FlotsamModKit.Game
             return snap;
         }
 
+        /// <summary>Pole buildables ALSO carry an EnergyGridBuildableComponent, so the old
+        /// `is EnergyGridBuildableComponent` check misclassified poles as buildings (breaking
+        /// tie-break and pole-pruning semantics). EnergyGridPole lives on the same GameObject
+        /// as its connector (decompile 20885/20912: Initialize does
+        /// Connector = GetComponent&lt;EnergyGridConnector&gt;()), so probe it first.</summary>
+        private static PlannerKind KindOf(EnergyGridConnector c)
+        {
+            try
+            {
+                if (c.GetComponent<EnergyGridPole>() != null) return PlannerKind.Pole;
+            }
+            catch { }
+            return c is EnergyGridBuildableComponent ? PlannerKind.Building : PlannerKind.Pole;
+        }
+
+        // ------------------------------------------------------------- run
+
         /// <summary>
-        /// Runs the full one-key pipeline: snapshot → plan (incremental, or rebuild when
-        /// optimizeExisting and the gain is worth it) → remove → add → smart-merge.
-        /// Cable visuals, grid merges and save persistence are all the game's own code paths
-        /// (EnergyGrid.Connect/Disconnect dispatch the native events).
+        /// Plans the full one-key pipeline: snapshot → plan (incremental, or rebuild when
+        /// optimizeExisting and the gain is worth it) → operation queue (Remove all → Add →
+        /// Merge). Returns immediately WITHOUT touching any cable; drain the queue with
+        /// EnergyRunSession.Step over the following ticks. Cable visuals, grid merges and
+        /// save persistence are all the game's own code paths (EnergyGrid.Connect/Disconnect
+        /// dispatch the native events). Blocked/empty plans come back as already-Done
+        /// sessions carrying the appropriate Result.
         /// </summary>
-        public static EnergyRunResult RunAutoConnect(bool optimizeExisting, float gainPct, bool connectPoles,
-                                                     bool mergePowered, bool verbose, Action<string> log,
-                                                     Action<string> warnLog = null)
+        public static EnergyRunSession BeginRun(bool optimizeExisting, float gainPct, bool connectPoles,
+                                                bool mergePowered, bool verbose,
+                                                Action<string> log, Action<string> warnLog,
+                                                string tracePath, int maxOpsPerStep, bool manual = false)
         {
             var res = new EnergyRunResult();
-            if (!Ready) { res.Blocked = true; return res; }
             Action<string> warn = warnLog ?? log;
+
+            if (!Ready)
+            {
+                res.Blocked = true;
+                return new EnergyRunSession(null, null, res, verbose, log, warn, tracePath, false);
+            }
 
             Snapshot snap;
             try { snap = TakeSnapshot(verbose ? log : null); }
             catch (Exception e)
             {
-                if (warn != null) warn("snapshot failed: " + e.Message);
+                warn?.Invoke("snapshot failed: " + e.Message);
                 res.Blocked = true;
-                return res;
+                return new EnergyRunSession(null, null, res, verbose, log, warn, tracePath, false);
             }
             // Snapshot unavailable (no CableLinkRange / snapshot exception): report as blocked
             // so a manual run never toasts "grid complete" on a failure. A genuinely empty
             // snapshot (no connectors at all) keeps the old "nothing to do" semantics.
-            if (snap == null) { res.Blocked = true; return res; }
-            if (snap.Nodes.Length == 0) return res;
+            if (snap == null)
+            {
+                res.Blocked = true;
+                return new EnergyRunSession(null, null, res, verbose, log, warn, tracePath, false);
+            }
+            if (snap.Nodes.Length == 0)
+                return new EnergyRunSession(null, null, res, verbose, log, warn, tracePath, false);
             // Design §5 Warn level: large snapshots make the O(n²) candidate scan noticeable.
-            if (snap.Connectors.Count > 500 && warn != null)
-                warn($"snapshot: {snap.Connectors.Count} connectors (>500)，候选边扫描为 O(n²)、未做空间分桶，" +
-                     "一键连网可能短暂卡顿");
+            if (snap.Connectors.Count > 500)
+                warn?.Invoke($"snapshot: {snap.Connectors.Count} connectors (>500)，候选边扫描为 O(n²)、未做空间分桶，" +
+                             "一键连网可能短暂卡顿");
 
             PlannerResult plan;
             try
@@ -255,9 +453,9 @@ namespace FlotsamModKit.Game
             }
             catch (Exception e)
             {
-                if (warn != null) warn("plan failed: " + e.Message);
+                warn?.Invoke("plan failed: " + e.Message);
                 res.Blocked = true;
-                return res;
+                return new EnergyRunSession(null, null, res, verbose, log, warn, tracePath, false);
             }
 
             res.Rebuilt = plan.Rebuild;
@@ -265,50 +463,36 @@ namespace FlotsamModKit.Game
             res.Unreachable = plan.Unreachable.Count;
             res.GainPct = plan.RebuildBaseline > 0f ? plan.Gain / plan.RebuildBaseline * 100f : 0f;
             if (verbose)
-                log($"plan: nodes={snap.Nodes.Length} grids={snap.Grids.Length} existing={snap.Existing.Count} " +
+                log?.Invoke($"plan: nodes={snap.Nodes.Length} grids={snap.Grids.Length} existing={snap.Existing.Count} " +
+                            $"add={plan.Add.Count} remove={plan.Remove.Count} merge={plan.Merge.Count} " +
+                            $"unreachable={plan.Unreachable.Count}");
+
+            var ops = new List<EnergyRunSession.Op>(plan.Remove.Count + plan.Add.Count + plan.Merge.Count);
+            foreach (var e in plan.Remove) ops.Add(new EnergyRunSession.Op { Kind = EnergyRunSession.OpKind.Remove, Edge = e });
+            foreach (var e in plan.Add) ops.Add(new EnergyRunSession.Op { Kind = EnergyRunSession.OpKind.Add, Edge = e });
+            foreach (var e in plan.Merge) ops.Add(new EnergyRunSession.Op { Kind = EnergyRunSession.OpKind.Merge, Edge = e });
+
+            // Trace only real work (or a manual run, which the user explicitly asked for);
+            // auto-mode heartbeats with nothing to do must not touch the file.
+            bool traceStarted = ops.Count > 0 || manual;
+            if (traceStarted)
+                TraceRunStart(tracePath,
+                    $"run start ({(manual ? "manual" : "auto")}) nodes={snap.Nodes.Length} existing={snap.Existing.Count} " +
                     $"add={plan.Add.Count} remove={plan.Remove.Count} merge={plan.Merge.Count} " +
-                    $"unreachable={plan.Unreachable.Count}");
+                    $"unreachable={plan.Unreachable.Count} rebuild={(plan.Rebuild ? "yes" : "no")}");
 
-            var touched = new HashSet<int>();
-
-            // Removals first: they free the slots the rebuild needs.
-            foreach (var e in plan.Remove)
-            {
-                if (TryDisconnect(snap, e))
-                {
-                    res.RemovedCables++;
-                    if (verbose) log("drop " + Describe(snap, e));
-                }
-            }
-            foreach (var e in plan.Add)
-            {
-                if (TryConnect(snap, e))
-                {
-                    res.AddedCables++;
-                    CountBuildings(snap, e, touched);
-                    if (verbose) log("link " + Describe(snap, e));
-                }
-                else if (verbose) log("skip(legality) " + Describe(snap, e));
-            }
-            foreach (var e in plan.Merge)
-            {
-                if (TryConnect(snap, e))
-                {
-                    res.MergedCables++;
-                    if (verbose) log("merge " + Describe(snap, e));
-                }
-            }
-            res.ConnectedBuildings = touched.Count;
-            return res;
+            return new EnergyRunSession(snap, ops, res, verbose, log, warn, tracePath, traceStarted);
         }
 
-        private static void CountBuildings(Snapshot snap, PlannerEdge e, HashSet<int> set)
+        // ------------------------------------------------------------- execution helpers
+
+        internal static void CountBuildings(Snapshot snap, PlannerEdge e, HashSet<int> set)
         {
             if (snap.Nodes[e.A].Kind == PlannerKind.Building && snap.Nodes[e.A].Used == 0) set.Add(e.A);
             if (snap.Nodes[e.B].Kind == PlannerKind.Building && snap.Nodes[e.B].Used == 0) set.Add(e.B);
         }
 
-        private static string Describe(Snapshot snap, PlannerEdge e)
+        internal static string Describe(Snapshot snap, PlannerEdge e)
         {
             return NameOf(snap, e.A) + " <-> " + NameOf(snap, e.B) + " d=" + e.Length.ToString("0.#");
         }
@@ -342,7 +526,7 @@ namespace FlotsamModKit.Game
             catch { return false; }
         }
 
-        private static bool TryConnect(Snapshot snap, PlannerEdge e)
+        internal static bool TryConnect(Snapshot snap, PlannerEdge e)
         {
             try
             {
@@ -353,7 +537,7 @@ namespace FlotsamModKit.Game
             catch { return false; }
         }
 
-        private static bool TryDisconnect(Snapshot snap, PlannerEdge e)
+        internal static bool TryDisconnect(Snapshot snap, PlannerEdge e)
         {
             try
             {
