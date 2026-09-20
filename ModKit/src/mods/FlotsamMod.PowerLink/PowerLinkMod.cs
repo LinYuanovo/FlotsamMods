@@ -29,6 +29,7 @@ namespace FlotsamMods.PowerLink
         private bool _verbose;
 
         private bool _running;
+        private bool _iconSet;
         private float _nextHeartbeat;
         private float _pendingAt = -1f;
         private string _lastToast = "";
@@ -53,7 +54,6 @@ namespace FlotsamMods.PowerLink
             _runButton = Ui.AddHudButton("powerlink.run", "连电网", () => RunOnce(true),
                                          HudAnchor.RightMiddle, Config, "button");
             _runButton.Visible = true;
-            _runButton.SetIcon(NativeSkin.Find("energy", "power", "bolt", "electric", "battery"));
 
             _autoButton = Ui.AddHudButton("powerlink.auto", AutoLabel, ToggleAuto,
                                           HudAnchor.RightMiddle, Config, "autobutton");
@@ -73,6 +73,7 @@ namespace FlotsamMods.PowerLink
             _runButton = null;
             _autoButton = null;
             _pendingAt = -1f;
+            _iconSet = false;
             Log.Info("powerlink removed");
         }
 
@@ -92,6 +93,19 @@ namespace FlotsamMods.PowerLink
         public override void OnTick()
         {
             if (_hotkey != null && _hotkey.IsDown && GameKeys.GetCtrlHeld()) RunOnce(true);
+
+            // Icon lookup only works once the game has spawned its UI (NativeSkin harvests
+            // in-game sprites), so defer it out of OnEnable, which may run at the main menu.
+            if (!_iconSet && GameApi.IsPlaying)
+            {
+                NativeSkin.Harvest();   // idempotent, shared across mods
+                if (NativeSkin.Available)
+                {
+                    _iconSet = true;
+                    try { _runButton?.SetIcon(NativeSkin.Find("energy", "power", "bolt", "electric", "battery")); }
+                    catch { }
+                }
+            }
 
             if (!_auto || _running) return;
             float now = Time.realtimeSinceStartup;

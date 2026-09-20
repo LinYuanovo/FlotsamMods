@@ -30,9 +30,17 @@ namespace FlotsamModKit.Game
             var sb = new StringBuilder();
             if (RemovedCables > 0) sb.Append($"整理移除 {RemovedCables} 根、");
             if (ConnectedBuildings > 0) sb.Append($"接入 {ConnectedBuildings} 座建筑、");
-            sb.Append($"新增 {AddedCables} 根电缆");
-            if (Rebuilt) sb.Append($"（总长 -{GainPct:0.#}%）");
-            if (MergedCables > 0) sb.Append($"，互济合并 {MergedCables} 处");
+            if (AddedCables > 0 || MergedCables == 0)
+            {
+                sb.Append($"新增 {AddedCables} 根电缆");
+                if (Rebuilt) sb.Append($"（总长 -{GainPct:0.#}%）");
+                if (MergedCables > 0) sb.Append($"，互济合并 {MergedCables} 处");
+            }
+            else
+            {
+                sb.Append($"互济合并 {MergedCables} 处");
+                if (Rebuilt) sb.Append($"（总长 -{GainPct:0.#}%）");
+            }
             if (Unreachable > 0) sb.Append($"；{Unreachable} 座超距无法连接");
             return sb.ToString();
         }
@@ -229,7 +237,11 @@ namespace FlotsamModKit.Game
                 res.Blocked = true;
                 return res;
             }
-            if (snap == null || snap.Nodes.Length == 0) return res;
+            // Snapshot unavailable (no CableLinkRange / snapshot exception): report as blocked
+            // so a manual run never toasts "grid complete" on a failure. A genuinely empty
+            // snapshot (no connectors at all) keeps the old "nothing to do" semantics.
+            if (snap == null) { res.Blocked = true; return res; }
+            if (snap.Nodes.Length == 0) return res;
             // Design §5 Warn level: large snapshots make the O(n²) candidate scan noticeable.
             if (snap.Connectors.Count > 500 && warn != null)
                 warn($"snapshot: {snap.Connectors.Count} connectors (>500)，候选边扫描为 O(n²)、未做空间分桶，" +
@@ -244,13 +256,14 @@ namespace FlotsamModKit.Game
             catch (Exception e)
             {
                 if (warn != null) warn("plan failed: " + e.Message);
+                res.Blocked = true;
                 return res;
             }
 
             res.Rebuilt = plan.Rebuild;
             res.RebuildSkipReason = plan.RebuildSkipReason;
             res.Unreachable = plan.Unreachable.Count;
-            if (plan.ExistingTotal > 0f) res.GainPct = plan.Gain / plan.ExistingTotal * 100f;
+            res.GainPct = plan.RebuildBaseline > 0f ? plan.Gain / plan.RebuildBaseline * 100f : 0f;
             if (verbose)
                 log($"plan: nodes={snap.Nodes.Length} grids={snap.Grids.Length} existing={snap.Existing.Count} " +
                     $"add={plan.Add.Count} remove={plan.Remove.Count} merge={plan.Merge.Count} " +

@@ -215,6 +215,7 @@ internal static class Program
         var res = Plan(nodes, grids, existing, optimize: true);
         Assert(res.Remove.Count == 0, "island wiring preserved");
         Assert(res.Unreachable.Count == 2, "island counts as unreachable");
+        Assert(!res.Rebuild, "island must not trigger rebuild");
     }
 
     // T12: 镇心(剩1槽)两侧等长(30)候选 → 平手优先外侧端点空槽多的 B1(free2 > B2 free1)

@@ -64,11 +64,13 @@ namespace FlotsamModKit.Game
         public float ExistingTotal;
         /// <summary>Existing + incremental additions (the "do not rebuild" baseline).</summary>
         public float BaselineTotal;
+        /// <summary>Gain denominator when a rebuild was accepted: removable existing length
+        /// (island-preserved cables excluded) + incremental additions.</summary>
+        public float RebuildBaseline;
         public float PlanTotal;
         public float Gain;
         public bool Rebuild;
         public string RebuildSkipReason = "";
-        public bool HasWork => Add.Count > 0 || Remove.Count > 0 || Merge.Count > 0;
     }
 
     /// <summary>
@@ -164,13 +166,26 @@ namespace FlotsamModKit.Game
                 {
                     float rebTotal = 0f;
                     foreach (var e in reb) rebTotal += e.Length;
-                    res.Gain = res.BaselineTotal - rebTotal;
-                    float threshold = Math.Max(res.ExistingTotal * gainPct / 100f, MinGainAbsolute);
+                    // Existing cables with an end outside the rebuilt network are island-
+                    // preserved (never removed), so their length is not savable: counting it
+                    // would inflate Gain with a phantom the rebuild can never cash in.
+                    float retainedTotal = 0f;
+                    var retainedSeen = new HashSet<long>();
+                    if (existing != null)
+                        foreach (var e in existing)
+                        {
+                            if (!retainedSeen.Add(PlannerEdge.EdgeKey(e.A, e.B))) continue;
+                            if (!(net[e.A] && net[e.B])) retainedTotal += e.Length;
+                        }
+                    float removableTotal = res.ExistingTotal - retainedTotal;
+                    res.Gain = (removableTotal + incAdd) - rebTotal;
+                    float threshold = Math.Max(removableTotal * gainPct / 100f, MinGainAbsolute);
                     if (res.Gain >= threshold)
                     {
                         chosen = reb;
                         inNet = net;
                         res.Rebuild = true;
+                        res.RebuildBaseline = removableTotal + incAdd;
                         res.PlanTotal = rebTotal;
                     }
                     else res.RebuildSkipReason = "gain<" + threshold.ToString("0.#");
@@ -406,7 +421,11 @@ namespace FlotsamModKit.Game
                 }
             }
 
-            // 2) grow outward: cheapest edge with exactly one end already in the network
+            // 2) grow outward: cheapest edge with exactly one end already in the network.
+            // Note: absorbed nodes keep their island-preserved old cables, which are not
+            // charged to the rebuild's slot accounting here; in extreme cases that can
+            // over-schedule a slot — execution-time LegalNow re-checks every edge and
+            // skips the illegal one, and the next run self-heals.
             bool progress = true;
             while (progress)
             {
