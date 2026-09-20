@@ -51,6 +51,7 @@ $mods = [ordered]@{
     'FlotsamMod.BuildingFinder' = 'flotsam.buildingfinder'
     'FlotsamMod.MaterialHelper' = 'flotsam.materialhelper'
     'FlotsamMod.MiniMap'        = 'flotsam.minimap'
+    'FlotsamMod.GameplayTweaks' = 'flotsam.gameplaytweaks'
     'FlotsamMod.BatchManager'   = 'flotsam.batchmanager'
     'FlotsamMod.PowerLink'      = 'flotsam.powerlink'
 }

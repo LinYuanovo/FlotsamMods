@@ -103,7 +103,7 @@
 
 ### 3.5 拆除二次确认（内联，不用原生弹窗——PopUpDialog 无可自定义文案的通用确认 API，57323 起核实）
 - 勾选数 ≥ `confirmThreshold`(默认 5) 时点「批量拆除」→ 操作栏原位变红色危险条：`确认拆除 N 座「型号名」？ [确认拆除] [取消]`（危险红 `(0.87,0.30,0.26)`，交接报告 §2.1 色板）。
-- 确认条期间禁用其他操作按钮；点击任何别处/再次点批量拆除/超时 10s → 取消。
+- 确认条期间禁用其他操作按钮；**执行任何其他交互（勾选/切换型号/搜索/其他批量操作）、「取消」按钮、超时 10s、关窗**均退出确认态。
 - 升级/开关不确认。
 
 ### 3.6 配置与事件
@@ -150,8 +150,11 @@ Snapshot():
        E 内的边权重 ×(1−keepBonus=2%)，平手时倾向保留现线，避免无谓翻动
        → mstTotal。
   gain = (existingTotal + addTotal) − mstTotal。
-  gain ≥ max(existingTotal × optimizeGainPct%(默认10), 一根 CableLinkRange)
+  gain ≥ max(existingTotal × optimizeGainPct%(默认10), 5u 固定下限)
   → 执行重构：
+  （裁决记录：原稿下限为「一根 CableLinkRange」，实现改为固定 5u——
+  CableLinkRange 默认仅 20u 且随设置变化，作下限会让整理在中小镇几乎
+  永不触发或行为不可预期；5u+pct 双门槛已足够防翻动。）
     移除：E∖MST 逐条 EnergyGrid.Disconnect(a,b)（39182；原生事件删电缆、
     UpdateGrids 重分电网）；
     新增：MST∖E 逐条复核合法性后 EnergyGrid.Connect(a,b)。
