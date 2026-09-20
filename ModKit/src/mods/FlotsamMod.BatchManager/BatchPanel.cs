@@ -49,6 +49,7 @@ namespace FlotsamMods.BatchManager
         private readonly List<Buildable> _checkedOrder = new List<Buildable>();   // _checked in click order (jump list)
         private readonly List<Buildable> _jumpList = new List<Buildable>();
         private readonly List<PlaceableAlertProperties> _malfunctions = new List<PlaceableAlertProperties>();
+        private readonly HashSet<BuildableCategory> _expanded = new HashSet<BuildableCategory>();   // 展开的分类（null = 未分类，引用比较）
 
         private TypeGroup _selected;                 // null == 「全部建筑」模式
         private int _totalBuildings;
@@ -403,6 +404,7 @@ namespace FlotsamMods.BatchManager
             var visible = VisibleGroups();
             AddLeftAllRow();
 
+            bool searching = (_query ?? "").Trim().Length > 0;
             BuildableCategory lastCat = null;
             bool first = true;
             foreach (var g in visible)
@@ -410,11 +412,19 @@ namespace FlotsamMods.BatchManager
                 if (first || g.Category != lastCat)
                 {
                     lastCat = g.Category;
-                    AddLeftHeader(g.Category);
+                    AddLeftHeader(g.Category, visible, searching);
                 }
                 first = false;
-                AddLeftRow(g);
+                if (searching || _expanded.Contains(g.Category)) AddLeftRow(g);
             }
+        }
+
+        /// <summary>Header click toggles the category's type rows; only the left column is rebuilt
+        /// (right list, checked set and jump list stay untouched).</summary>
+        private void ToggleCategory(BuildableCategory cat)
+        {
+            if (!_expanded.Remove(cat)) _expanded.Add(cat);
+            RebuildLeft();
         }
 
         /// <summary>Fixed top row: every visible type's instances, concatenated in left-column order.</summary>
@@ -450,10 +460,18 @@ namespace FlotsamMods.BatchManager
             if (rowImg != null) rowImg.color = new Color(c.r * 0.55f + 0.45f, c.g * 0.55f + 0.45f, c.b * 0.55f + 0.45f, 1f);
         }
 
-        private void AddLeftHeader(BuildableCategory cat)
+        private void AddLeftHeader(BuildableCategory cat, List<TypeGroup> visible, bool searching)
         {
             Color c = SafeColor(cat, GameUi.Accent);
             var header = GameUi.Row(_leftContent, 22f, new Color(c.r, c.g, c.b, 0.18f));
+            var button = header.AddComponent<Button>();
+            button.targetGraphic = header.GetComponent<Image>();
+            button.onClick.AddListener(() => ToggleCategory(cat));
+
+            int total = 0;
+            foreach (var g in visible)
+                if (g.Category == cat) total += g.Items.Count;
+
             float textLeft = 8f;
             var sprite = SafeIcon(cat);
             if (sprite != null)
@@ -463,7 +481,13 @@ namespace FlotsamMods.BatchManager
                               new Vector2(6f, 0f), new Vector2(18f, 18f));
                 textLeft = 28f;
             }
-            var label = GameUi.Label(header.transform, SafeCatName(cat), 13, c, TextAnchor.MiddleLeft);
+
+            bool expanded = searching || _expanded.Contains(cat);
+            string name = SafeCatName(cat);
+            if (name.Length == 0) name = "未分类";
+            var label = GameUi.Label(header.transform,
+                                     (expanded ? "▼ " : "▶ ") + name + " (" + total + ")",
+                                     13, c, TextAnchor.MiddleLeft);
             label.raycastTarget = false;
             GameUi.Stretch(GameUi.Rect(label.gameObject), textLeft, 1f, 8f, 1f);
             _leftRows.Add(header);
