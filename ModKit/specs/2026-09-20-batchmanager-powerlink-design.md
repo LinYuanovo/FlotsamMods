@@ -159,6 +159,11 @@ Snapshot():
     UpdateGrids 重分电网）；
     新增：MST∖E 逐条复核合法性后 EnergyGrid.Connect(a,b)。
     移除与新增在同一帧内完成，不存在跨帧断电窗口。
+    【实现后修订 2026-09-21：用户遭遇一次「自动连网+新建电池」硬闪退（根因未定位），
+    执行模型改为分帧会话——BeginRun 建队列、每 tick ≤ connectsPerTick(4) 条、每条前重查
+    Ready；「同帧」承诺被取代，手动整理时拆/接跨数帧（短暂低电力窗口，可接受的加固代价）。
+    另增抗崩溃痕迹文件 Mods/flotsam.powerlink/trace.log（逐条 pre/post 立即落盘）。
+    详见开发交接报告 §3.7。】
   gain 不达标 → 现网原样保留，只走增量方案 A。
   整理结果计入汇总与日志（移除X根/新增Y根/总长缩短Z%）。
 
