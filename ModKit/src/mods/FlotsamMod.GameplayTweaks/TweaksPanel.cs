@@ -25,10 +25,10 @@ namespace FlotsamMods.GameplayTweaks
         private const float HeaderH = 22f;
         private const float SliderH = 30f;
         private const float ButtonH = 32f;
-        private const float HelpH = 40f;
+        private const float HelpH = 54f;   // three help lines
 
         private const float ScrollTop = -44f;      // below the button row
-        private const float ScrollBottomTips = 46f; // above the help line
+        private const float ScrollBottomTips = 60f; // above the help block
         private const float ScrollBottomNoTips = 6f;
 
         private readonly GameplayTweaksMod _mod;
@@ -70,7 +70,7 @@ namespace FlotsamMods.GameplayTweaks
                 var config = _mod.Context.Config;
                 _overlay = ui.CreateOverlay("gameplaytweaks", 30650);
 
-                _window = GameUi.Window(_overlay.transform, "游戏性调整", new Vector2(486f, 540f),
+                _window = GameUi.Window(_overlay.transform, "游戏性调整", new Vector2(486f, 600f),
                                         new Vector2(0f, 20f), config, "panel", Hide, 28f);
                 _window.MinSize = new Vector2(452f, 360f);
                 _window.MaxSize = new Vector2(1000f, 940f);
@@ -138,6 +138,9 @@ namespace FlotsamMods.GameplayTweaks
             Header("发电");
             Slider("发电效率", GameplayTweaksMod.KGenerator, 0f, 500f);
 
+            Header("小人");
+            Slider("整体执行效率", GameplayTweaksMod.KAgentEfficiency, 25f, 500f);
+
             Header("美观度 · 建筑分");
             Slider("负面建筑贡献", GameplayTweaksMod.KBeautyNegBuild, 0f, 200f);
             Slider("正面建筑贡献", GameplayTweaksMod.KBeautyPosBuild, 0f, 500f);
@@ -151,7 +154,8 @@ namespace FlotsamMods.GameplayTweaks
         {
             var help = GameUi.Label(_window.Body.transform,
                 "100% = 原版。重量：影响移动能耗与还能承载多少建筑；发电：所有发电机产出；\n" +
-                "美观：建筑美观分与其对居民士气的作用。改动即时生效并记忆，关总开关整体还原。",
+                "小人：整体执行效率（干活与走路一起变快/慢）；美观：建筑美观分与其对居民士气的作用。\n" +
+                "改动即时生效并记忆，关总开关整体还原。",
                 11, GameUi.DimText, TextAnchor.MiddleLeft, true, bold: false);
             PlaceBottom(GameUi.Rect(help.gameObject), 0f, HelpH);
 
@@ -267,6 +271,7 @@ namespace FlotsamMods.GameplayTweaks
                 case GameplayTweaksMod.KWeightEnergy: return GameplayTweaksMod.WeightEnergy * 100f;
                 case GameplayTweaksMod.KTugCapacity: return GameplayTweaksMod.TugCapacity * 100f;
                 case GameplayTweaksMod.KGenerator: return GameplayTweaksMod.Generator * 100f;
+                case GameplayTweaksMod.KAgentEfficiency: return GameplayTweaksMod.AgentEfficiency * 100f;
                 case GameplayTweaksMod.KBeautyNegBuild: return GameplayTweaksMod.BeautyNegBuild * 100f;
                 case GameplayTweaksMod.KBeautyPosBuild: return GameplayTweaksMod.BeautyPosBuild * 100f;
                 case GameplayTweaksMod.KBeautyNegMorale: return GameplayTweaksMod.BeautyNegMorale * 100f;

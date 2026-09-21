@@ -13,7 +13,7 @@ namespace FlotsamMods.GameplayTweaks
     ///
     /// Everything is a Harmony postfix that reads a static multiplier and rewrites the game's own
     /// result, so the effect is live and reverts the moment the mod is disabled (the host revokes
-    /// every patch in <c>ModEntry.SafeDisable</c>). The seven knobs, and the exact game value each
+    /// every patch in <c>ModEntry.SafeDisable</c>). The eight knobs, and the exact game value each
     /// one bends (all line numbers are in _mod_recon/src/Assembly-CSharp.decompiled.cs):
     ///
     ///  1. 重量能耗影响  — town weight does NOT lower top speed in Flotsam; it raises the energy
@@ -29,10 +29,15 @@ namespace FlotsamMods.GameplayTweaks
     ///  3. 发电效率 — `EnergyGrid.ReturnEnergyProduction` (39070) sums each producer's `Production`.
     ///     Scaling the getter of all three producers (passive 21711 / item 21098 / manual 21431)
     ///     boosts every generator, and everything derived from Production stays consistent.
-    ///  4-5. 建筑美观贡献 — `Community.BeautyScore` (7344) is the sum of `Buildable.ReturnBeautyScore`
+    ///  4. 小人执行效率 — `DrifterAttributes.ReturnAttributeModifier(Attribute)` (9286) is the single
+    ///     central agent-efficiency multiplier: every work speed (produce 136821 / construction
+    ///     134162 / research 27019 / generation 21537 / generic 134701) AND walking (Athletics ->
+    ///     `Navigator.ReturnSpeed` 115270) read it. Scaling it speeds/slows agents overall. The
+    ///     `(AttributeType,int)` overload (9305) is tooltip-text only and is left alone.
+    ///  5-6. 建筑美观贡献 — `Community.BeautyScore` (7344) is the sum of `Buildable.ReturnBeautyScore`
     ///     (17387). We scale negative and positive scores separately, then force
     ///     `Community.UpdateBeautyScore` (7783) so the cached total reflects the change at once.
-    ///  6-7. 美观→士气修正 — `TownBeautyMoraleEffect.ReturnModifier` (217301) maps the score through
+    ///  7-8. 美观→士气修正 — `TownBeautyMoraleEffect.ReturnModifier` (217301) maps the score through
     ///     Threshold->Modifier bands and is summed by `Morale.ReturnMoraleModifierSum` (217798).
     ///     Scaled live at read time, so no recompute is needed.
     /// </summary>
@@ -48,6 +53,7 @@ namespace FlotsamMods.GameplayTweaks
         public static float WeightEnergy = 1f;     // 0..3   重量能耗影响
         public static float TugCapacity = 1f;      // 1..10  载重上限倍率
         public static float Generator = 1f;        // 0..5   发电效率
+        public static float AgentEfficiency = 1f;  // .25..5 小人整体执行效率
         public static float BeautyNegBuild = 1f;   // 0..2   建筑·负面美观贡献
         public static float BeautyPosBuild = 1f;   // 0..5   建筑·正面美观贡献
         public static float BeautyNegMorale = 1f;  // 0..2   士气·负面修正
@@ -59,6 +65,7 @@ namespace FlotsamMods.GameplayTweaks
         internal const string KWeightEnergy = "weightEnergyPct";
         internal const string KTugCapacity = "tugCapacityPct";
         internal const string KGenerator = "generatorPct";
+        internal const string KAgentEfficiency = "agentEfficiencyPct";
         internal const string KBeautyNegBuild = "beautyNegBuildPct";
         internal const string KBeautyPosBuild = "beautyPosBuildPct";
         internal const string KBeautyNegMorale = "beautyNegMoralePct";
@@ -99,6 +106,7 @@ namespace FlotsamMods.GameplayTweaks
             WeightEnergy = Pct(Config.Get(KWeightEnergy, 100), 0f, 300f);
             TugCapacity = Pct(Config.Get(KTugCapacity, 100), 100f, 1000f);
             Generator = Pct(Config.Get(KGenerator, 100), 0f, 500f);
+            AgentEfficiency = Pct(Config.Get(KAgentEfficiency, 100), 25f, 500f);
             BeautyNegBuild = Pct(Config.Get(KBeautyNegBuild, 100), 0f, 200f);
             BeautyPosBuild = Pct(Config.Get(KBeautyPosBuild, 100), 0f, 500f);
             BeautyNegMorale = Pct(Config.Get(KBeautyNegMorale, 100), 0f, 200f);
@@ -107,7 +115,8 @@ namespace FlotsamMods.GameplayTweaks
             Verbose = Config.Get(KVerbose, false);
 
             Log.Info($"loaded — active={Active}, weight-energy {WeightEnergy:P0}, tug {TugCapacity:P0}, " +
-                     $"generator {Generator:P0}, beauty build -{BeautyNegBuild:P0}/+{BeautyPosBuild:P0}, " +
+                     $"generator {Generator:P0}, agent {AgentEfficiency:P0}, " +
+                     $"beauty build -{BeautyNegBuild:P0}/+{BeautyPosBuild:P0}, " +
                      $"morale -{BeautyNegMorale:P0}/+{BeautyPosMorale:P0}, panel key {_panelKey.Key}");
         }
 
@@ -143,6 +152,12 @@ namespace FlotsamMods.GameplayTweaks
             ok += Register(GamePatches.MethodByName(typeof(TownBeautyMoraleEffect), "ReturnModifier"),
                            nameof(AfterBeautyMorale), "TownBeautyMoraleEffect.ReturnModifier");
 
+            // 8) agent execution efficiency: the single central multiplier behind every work speed
+            //    (produce/construction/research/generation) AND walking (Athletics -> Navigator speed).
+            ok += Register(GamePatches.Method(typeof(DrifterAttributes), "ReturnAttributeModifier",
+                                              typeof(DrifterAttributes.Attribute)),
+                           nameof(AfterAttributeModifier), "DrifterAttributes.ReturnAttributeModifier");
+
             _hudButton = Ui.AddHudButton("gameplaytweaks.panel", "游戏性调整", TogglePanel,
                                          HudAnchor.LeftTop, Config, "button");
             _hudButton.Visible = true;
@@ -150,8 +165,8 @@ namespace FlotsamMods.GameplayTweaks
             _panel = new TweaksPanel(this);
             _panel.Build();
 
-            Log.Info($"ready — {ok}/7 patch(es) applied; HUD button + panel key {_panelKey.Key}");
-            if (ok < 7) Log.Warn("one or more patch targets were not found — those knobs stay inert (game update?)");
+            Log.Info($"ready — {ok}/8 patch(es) applied; HUD button + panel key {_panelKey.Key}");
+            if (ok < 8) Log.Warn("one or more patch targets were not found — those knobs stay inert (game update?)");
         }
 
         private int Register(MethodBase target, string patchName, string label)
@@ -250,6 +265,7 @@ namespace FlotsamMods.GameplayTweaks
                 case KWeightEnergy: WeightEnergy = m; break;
                 case KTugCapacity: TugCapacity = m; break;
                 case KGenerator: Generator = m; break;
+                case KAgentEfficiency: AgentEfficiency = m; break;
                 case KBeautyNegBuild: BeautyNegBuild = m; break;
                 case KBeautyPosBuild: BeautyPosBuild = m; break;
                 case KBeautyNegMorale: BeautyNegMorale = m; break;
@@ -273,13 +289,14 @@ namespace FlotsamMods.GameplayTweaks
         internal void ResetToDefaults()
         {
             Active = true;
-            WeightEnergy = TugCapacity = Generator = 1f;
+            WeightEnergy = TugCapacity = Generator = AgentEfficiency = 1f;
             BeautyNegBuild = BeautyPosBuild = BeautyNegMorale = BeautyPosMorale = 1f;
 
             Config.Set(KActive, true);
             Config.Set(KWeightEnergy, 100);
             Config.Set(KTugCapacity, 100);
             Config.Set(KGenerator, 100);
+            Config.Set(KAgentEfficiency, 100);
             Config.Set(KBeautyNegBuild, 100);
             Config.Set(KBeautyPosBuild, 100);
             Config.Set(KBeautyNegMorale, 100);
@@ -346,6 +363,14 @@ namespace FlotsamMods.GameplayTweaks
         {
             if (!Active) return;
             float m = Generator;
+            if (Mathf.Approximately(m, 1f)) return;
+            __result *= m;
+        }
+
+        private static void AfterAttributeModifier(ref float __result)
+        {
+            if (!Active) return;
+            float m = AgentEfficiency;
             if (Mathf.Approximately(m, 1f)) return;
             __result *= m;
         }
