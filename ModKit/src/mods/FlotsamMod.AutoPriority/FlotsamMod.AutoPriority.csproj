@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>FlotsamMod.AutoPriority</AssemblyName>
+    <RootNamespace>FlotsamMods.AutoPriority</RootNamespace>
+    <Version>1.1.0</Version>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- Private=false: the mod folder must contain ONLY this DLL; the shared contracts
+         are loaded once by the host, so every mod binds to the same interface identity. -->
+    <ProjectReference Include="..\..\Flotsam.ModKit.Abstractions\Flotsam.ModKit.Abstractions.csproj" Private="false" />
+    <ProjectReference Include="..\..\Flotsam.ModKit.Game\Flotsam.ModKit.Game.csproj" Private="false" />
+  </ItemGroup>
+</Project>
