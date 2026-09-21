@@ -141,6 +141,9 @@ namespace FlotsamMods.GameplayTweaks
             Header("小人");
             Slider("整体执行效率", GameplayTweaksMod.KAgentEfficiency, 25f, 500f);
 
+            Header("船只");
+            Slider("移动速度(打捞/渔船)", GameplayTweaksMod.KBoatSpeed, 25f, 500f);
+
             Header("美观度 · 建筑分");
             Slider("负面建筑贡献", GameplayTweaksMod.KBeautyNegBuild, 0f, 200f);
             Slider("正面建筑贡献", GameplayTweaksMod.KBeautyPosBuild, 0f, 500f);
@@ -153,8 +156,8 @@ namespace FlotsamMods.GameplayTweaks
         private void BuildHelp()
         {
             var help = GameUi.Label(_window.Body.transform,
-                "100% = 原版。重量：影响移动能耗与还能承载多少建筑；发电：所有发电机产出；\n" +
-                "小人：整体执行效率（干活与走路一起变快/慢）；美观：建筑美观分与其对居民士气的作用。\n" +
+                "100% = 原版。重量：移动能耗与载重上限；发电：所有发电机产出；船只：打捞/渔船移动速度；\n" +
+                "小人：整体执行效率（干活+走路）；美观：建筑美观分与其对居民士气的作用。\n" +
                 "改动即时生效并记忆，关总开关整体还原。",
                 11, GameUi.DimText, TextAnchor.MiddleLeft, true, bold: false);
             PlaceBottom(GameUi.Rect(help.gameObject), 0f, HelpH);
@@ -272,6 +275,7 @@ namespace FlotsamMods.GameplayTweaks
                 case GameplayTweaksMod.KTugCapacity: return GameplayTweaksMod.TugCapacity * 100f;
                 case GameplayTweaksMod.KGenerator: return GameplayTweaksMod.Generator * 100f;
                 case GameplayTweaksMod.KAgentEfficiency: return GameplayTweaksMod.AgentEfficiency * 100f;
+                case GameplayTweaksMod.KBoatSpeed: return GameplayTweaksMod.BoatSpeed * 100f;
                 case GameplayTweaksMod.KBeautyNegBuild: return GameplayTweaksMod.BeautyNegBuild * 100f;
                 case GameplayTweaksMod.KBeautyPosBuild: return GameplayTweaksMod.BeautyPosBuild * 100f;
                 case GameplayTweaksMod.KBeautyNegMorale: return GameplayTweaksMod.BeautyNegMorale * 100f;

@@ -13,7 +13,7 @@ namespace FlotsamMods.GameplayTweaks
     ///
     /// Everything is a Harmony postfix that reads a static multiplier and rewrites the game's own
     /// result, so the effect is live and reverts the moment the mod is disabled (the host revokes
-    /// every patch in <c>ModEntry.SafeDisable</c>). The eight knobs, and the exact game value each
+    /// every patch in <c>ModEntry.SafeDisable</c>). The nine knobs, and the exact game value each
     /// one bends (all line numbers are in _mod_recon/src/Assembly-CSharp.decompiled.cs):
     ///
     ///  1. 重量能耗影响  — town weight does NOT lower top speed in Flotsam; it raises the energy
@@ -34,10 +34,16 @@ namespace FlotsamMods.GameplayTweaks
     ///     134162 / research 27019 / generation 21537 / generic 134701) AND walking (Athletics ->
     ///     `Navigator.ReturnSpeed` 115270) read it. Scaling it speeds/slows agents overall. The
     ///     `(AttributeType,int)` overload (9305) is tooltip-text only and is left alone.
-    ///  5-6. 建筑美观贡献 — `Community.BeautyScore` (7344) is the sum of `Buildable.ReturnBeautyScore`
+    ///  5. 船速 — boat Navigators are `_isVessel` with `_agent == null` (114792-114799), so their
+    ///     `Navigator.ReturnSpeed` (115264) returns the fixed per-terrain speed and NEVER sees
+    ///     agent efficiency (knob 4) — hence "agents faster but boats still slow". A SAILING boat's
+    ///     terrain is WaterSurface (UpdateGraph derives terrain from the water graph; Vessel is only
+    ///     the idle boarded captain), so we gate on water/vessel terrain then confirm the navigator
+    ///     owns a Boat (`_boat != null`), leaving swimming agents (WaterSurface, _boat null) alone.
+    ///  6-7. 建筑美观贡献 — `Community.BeautyScore` (7344) is the sum of `Buildable.ReturnBeautyScore`
     ///     (17387). We scale negative and positive scores separately, then force
     ///     `Community.UpdateBeautyScore` (7783) so the cached total reflects the change at once.
-    ///  7-8. 美观→士气修正 — `TownBeautyMoraleEffect.ReturnModifier` (217301) maps the score through
+    ///  8-9. 美观→士气修正 — `TownBeautyMoraleEffect.ReturnModifier` (217301) maps the score through
     ///     Threshold->Modifier bands and is summed by `Morale.ReturnMoraleModifierSum` (217798).
     ///     Scaled live at read time, so no recompute is needed.
     /// </summary>
@@ -54,6 +60,7 @@ namespace FlotsamMods.GameplayTweaks
         public static float TugCapacity = 1f;      // 1..10  载重上限倍率
         public static float Generator = 1f;        // 0..5   发电效率
         public static float AgentEfficiency = 1f;  // .25..5 小人整体执行效率
+        public static float BoatSpeed = 1f;        // .25..5 打捞/渔船移动速度
         public static float BeautyNegBuild = 1f;   // 0..2   建筑·负面美观贡献
         public static float BeautyPosBuild = 1f;   // 0..5   建筑·正面美观贡献
         public static float BeautyNegMorale = 1f;  // 0..2   士气·负面修正
@@ -66,6 +73,7 @@ namespace FlotsamMods.GameplayTweaks
         internal const string KTugCapacity = "tugCapacityPct";
         internal const string KGenerator = "generatorPct";
         internal const string KAgentEfficiency = "agentEfficiencyPct";
+        internal const string KBoatSpeed = "boatSpeedPct";
         internal const string KBeautyNegBuild = "beautyNegBuildPct";
         internal const string KBeautyPosBuild = "beautyPosBuildPct";
         internal const string KBeautyNegMorale = "beautyNegMoralePct";
@@ -107,6 +115,7 @@ namespace FlotsamMods.GameplayTweaks
             TugCapacity = Pct(Config.Get(KTugCapacity, 100), 100f, 1000f);
             Generator = Pct(Config.Get(KGenerator, 100), 0f, 500f);
             AgentEfficiency = Pct(Config.Get(KAgentEfficiency, 100), 25f, 500f);
+            BoatSpeed = Pct(Config.Get(KBoatSpeed, 100), 25f, 500f);
             BeautyNegBuild = Pct(Config.Get(KBeautyNegBuild, 100), 0f, 200f);
             BeautyPosBuild = Pct(Config.Get(KBeautyPosBuild, 100), 0f, 500f);
             BeautyNegMorale = Pct(Config.Get(KBeautyNegMorale, 100), 0f, 200f);
@@ -115,7 +124,7 @@ namespace FlotsamMods.GameplayTweaks
             Verbose = Config.Get(KVerbose, false);
 
             Log.Info($"loaded — active={Active}, weight-energy {WeightEnergy:P0}, tug {TugCapacity:P0}, " +
-                     $"generator {Generator:P0}, agent {AgentEfficiency:P0}, " +
+                     $"generator {Generator:P0}, agent {AgentEfficiency:P0}, boat {BoatSpeed:P0}, " +
                      $"beauty build -{BeautyNegBuild:P0}/+{BeautyPosBuild:P0}, " +
                      $"morale -{BeautyNegMorale:P0}/+{BeautyPosMorale:P0}, panel key {_panelKey.Key}");
         }
@@ -158,6 +167,12 @@ namespace FlotsamMods.GameplayTweaks
                                               typeof(DrifterAttributes.Attribute)),
                            nameof(AfterAttributeModifier), "DrifterAttributes.ReturnAttributeModifier");
 
+            // 9) boat (salvage/fishing) movement speed: boat Navigators are _isVessel with _agent==null,
+            //    so ReturnSpeed returns the fixed per-terrain Vessel speed and never sees agent
+            //    efficiency. Scale it only for the Vessel terrain so walking/swimming agents are untouched.
+            ok += Register(GamePatches.Method(typeof(Navigator), "ReturnSpeed", typeof(Navigator.TerrainType)),
+                           nameof(AfterBoatSpeed), "Navigator.ReturnSpeed");
+
             _hudButton = Ui.AddHudButton("gameplaytweaks.panel", "游戏性调整", TogglePanel,
                                          HudAnchor.LeftTop, Config, "button");
             _hudButton.Visible = true;
@@ -165,8 +180,8 @@ namespace FlotsamMods.GameplayTweaks
             _panel = new TweaksPanel(this);
             _panel.Build();
 
-            Log.Info($"ready — {ok}/8 patch(es) applied; HUD button + panel key {_panelKey.Key}");
-            if (ok < 8) Log.Warn("one or more patch targets were not found — those knobs stay inert (game update?)");
+            Log.Info($"ready — {ok}/9 patch(es) applied; HUD button + panel key {_panelKey.Key}");
+            if (ok < 9) Log.Warn("one or more patch targets were not found — those knobs stay inert (game update?)");
         }
 
         private int Register(MethodBase target, string patchName, string label)
@@ -266,6 +281,7 @@ namespace FlotsamMods.GameplayTweaks
                 case KTugCapacity: TugCapacity = m; break;
                 case KGenerator: Generator = m; break;
                 case KAgentEfficiency: AgentEfficiency = m; break;
+                case KBoatSpeed: BoatSpeed = m; break;
                 case KBeautyNegBuild: BeautyNegBuild = m; break;
                 case KBeautyPosBuild: BeautyPosBuild = m; break;
                 case KBeautyNegMorale: BeautyNegMorale = m; break;
@@ -289,7 +305,7 @@ namespace FlotsamMods.GameplayTweaks
         internal void ResetToDefaults()
         {
             Active = true;
-            WeightEnergy = TugCapacity = Generator = AgentEfficiency = 1f;
+            WeightEnergy = TugCapacity = Generator = AgentEfficiency = BoatSpeed = 1f;
             BeautyNegBuild = BeautyPosBuild = BeautyNegMorale = BeautyPosMorale = 1f;
 
             Config.Set(KActive, true);
@@ -297,6 +313,7 @@ namespace FlotsamMods.GameplayTweaks
             Config.Set(KTugCapacity, 100);
             Config.Set(KGenerator, 100);
             Config.Set(KAgentEfficiency, 100);
+            Config.Set(KBoatSpeed, 100);
             Config.Set(KBeautyNegBuild, 100);
             Config.Set(KBeautyPosBuild, 100);
             Config.Set(KBeautyNegMorale, 100);
@@ -374,6 +391,24 @@ namespace FlotsamMods.GameplayTweaks
             if (Mathf.Approximately(m, 1f)) return;
             __result *= m;
         }
+
+        private static void AfterBoatSpeed(Navigator __instance, Navigator.TerrainType terrain, ref float __result)
+        {
+            if (!Active) return;
+            float m = BoatSpeed;
+            if (Mathf.Approximately(m, 1f)) return;
+            // Boats sail on the WaterSurface graph (UpdateGraph sets terrain from the graph, so a
+            // moving boat is WaterSurface, NOT Vessel — Vessel is only the idle boarded captain).
+            // Gate on water terrains, then confirm this navigator actually owns a Boat so swimming
+            // agents (also WaterSurface) are left alone.
+            if (terrain != Navigator.TerrainType.WaterSurface && terrain != Navigator.TerrainType.Vessel) return;
+            if (_boatField == null)
+                _boatField = typeof(Navigator).GetField("_boat", BindingFlags.Instance | BindingFlags.NonPublic);
+            if (_boatField == null || _boatField.GetValue(__instance) == null) return;
+            __result *= m;
+        }
+
+        private static System.Reflection.FieldInfo _boatField;
 
         private static void AfterBeautyScore(ref int __result)
         {
