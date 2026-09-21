@@ -5,5 +5,10 @@
   "enabled.flotsam.minimap": "1",
   "manager.x": "283.5",
   "manager.y": "121.75",
-  "enabled.flotsam.gameplaytweaks": "1"
+  "enabled.flotsam.gameplaytweaks": "1",
+  "enabled.flotsam.batchmanager": "1",
+  "enabled.flotsam.powerlink": "1",
+  "enabled.flotsam.autopriority": "1",
+  "enabled.flotsam.autocrew": "1",
+  "enabled.flotsam.perfboost": "1"
 }

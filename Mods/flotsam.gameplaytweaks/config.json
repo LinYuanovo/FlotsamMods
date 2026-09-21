@@ -1,13 +1,20 @@
 {
   "showPanel": "0",
-  "button.x": "365.25",
+  "button.x": "372",
   "button.y": "-2",
-  "tugCapacityPct": "100",
-  "weightEnergyPct": "45",
-  "generatorPct": "189",
-  "beautyPosMoralePct": "100",
+  "tugCapacityPct": "200",
+  "weightEnergyPct": "50",
+  "generatorPct": "200",
+  "beautyPosMoralePct": "200",
   "active": "1",
-  "beautyNegBuildPct": "60",
-  "beautyPosBuildPct": "199",
-  "beautyNegMoralePct": "100"
+  "beautyNegBuildPct": "80",
+  "beautyPosBuildPct": "200",
+  "beautyNegMoralePct": "70",
+  "panel.x": "-24",
+  "panel.y": "31.25",
+  "panel.w": "476.25",
+  "panel.h": "533.25",
+  "panel.tips": "1",
+  "agentEfficiencyPct": "180",
+  "boatSpeedPct": "250"
 }

@@ -7,4 +7,12 @@
   <ItemGroup>
     <ProjectReference Include="..\Flotsam.ModKit.Abstractions\Flotsam.ModKit.Abstractions.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <!-- URP runtime ships with the game (Flotsam_Data/Managed); GamePerf tweaks the active
+         pipeline asset (shadowDistance / renderScale). Private=false: loaded from the game. -->
+    <Reference Include="Unity.RenderPipelines.Universal.Runtime">
+      <HintPath>$(GameManaged)\Unity.RenderPipelines.Universal.Runtime.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
 </Project>

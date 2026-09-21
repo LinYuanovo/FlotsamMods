@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "id": "flotsam.autocrew",
+  "name": "自动派工",
+  "version": "1.0.0",
+  "author": "ModKit",
+  "description": "按「选中物品数 ÷ 单人单次载重」自动决定派遣小人数，省去手动加减：①浮标自动派工(Ctrl+5)——游泳/打捞船/钓鱼浮标分别按小人背包或对应船的载货格数计算最优人数（船模式还会被现有船数限制）；②收集自动派工(Ctrl+6)——地标/建筑收集面板里只统计你打开开关的类别（含类别内物品开关），游泳或乘船按对应载重计算，并遵守原生人数上下限与系泊点限制。自动模式下每2秒 heartbeat 复核+放置浮标/开关变化事件触发，仅在人数变化时写回原生 AssignmentLimit（走游戏自己的入口，随存档保存）；关闭开关即交还手动控制，不回滚。",
+  "apiVersion": "1.1",
+  "gameVersionRange": ">=1.0.0",
+  "type": "code",
+  "restartRequired": false,
+  "entryAssembly": "FlotsamMod.AutoCrew.dll",
+  "entryType": "FlotsamMods.AutoCrew.AutoCrewMod",
+  "dependencies": [],
+  "permissions": ["ui", "keybinds", "config"],
+  "keybinds": [
+    { "id": "autocrew.markers", "default": "Alpha5", "display": "开关浮标自动派工(Ctrl+5)" },
+    { "id": "autocrew.landmarks", "default": "Alpha6", "display": "开关收集自动派工(Ctrl+6)" }
+  ]
+}

@@ -55,6 +55,8 @@ $mods = [ordered]@{
     'FlotsamMod.BatchManager'   = 'flotsam.batchmanager'
     'FlotsamMod.PowerLink'      = 'flotsam.powerlink'
     'FlotsamMod.AutoPriority'   = 'flotsam.autopriority'
+    'FlotsamMod.AutoCrew'       = 'flotsam.autocrew'
+    'FlotsamMod.PerfBoost'      = 'flotsam.perfboost'
 }
 foreach ($k in $mods.Keys) {
     $dst = Join-Path $GameDir ('Mods\' + $mods[$k])

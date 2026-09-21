@@ -1,0 +1,422 @@
+03:36:40.969 run start (auto) nodes=27 existing=30 add=1 remove=0 merge=0 unreachable=0 rebuild=no
+03:36:40.997 pre connect 电池 <-> EnergyGridDecorationComponent#26 d=6.1
+03:36:40.998 post ok
+03:36:40.998 run end added=1 removed=0 merged=0 buildings=0 unreachable=0 rebuild=no
+03:36:44.687 run start (manual) nodes=27 existing=31 add=7 remove=14 merge=0 unreachable=0 rebuild=yes
+03:36:44.688 pre drop EnergyGridDecorationComponent#0 <-> 电池 d=6.6
+03:36:44.690 post ok
+03:36:44.690 pre drop EnergyGridDecorationComponent#0 <-> 电池 d=10.6
+03:36:44.690 post ok
+03:36:44.690 pre drop 电池 <-> 电池 d=8
+03:36:44.690 post ok
+03:36:44.690 pre drop 电池 <-> 电池 d=8.2
+03:36:44.690 post ok
+03:36:44.711 pre drop 拆瓶机 <-> 电池 d=17.8
+03:36:44.712 post ok
+03:36:44.712 pre drop 木柴发电机 <-> EnergyGridDecorationComponent#15 d=17.4
+03:36:44.712 post ok
+03:36:44.712 pre drop 制造厂 <-> EnergyGridDecorationComponent#13 d=14.5
+03:36:44.712 post ok
+03:36:44.713 pre drop EnergyGridDecorationComponent#13 <-> EnergyGridDecorationComponent#18 d=12
+03:36:44.713 post ok
+03:36:44.740 pre drop 黄船 <-> EnergyGridDecorationComponent#16 d=16.6
+03:36:44.740 post ok
+03:36:44.740 pre drop EnergyGridDecorationComponent#15 <-> EnergyGridDecorationComponent#16 d=12.2
+03:36:44.740 post ok
+03:36:44.740 pre drop EnergyGridDecorationComponent#16 <-> 木柴发电机 d=19.3
+03:36:44.740 post ok
+03:36:44.740 pre drop 电池 <-> 电池 d=8.5
+03:36:44.740 post ok
+03:36:44.760 pre drop 电器工房 <-> EnergyGridDecorationComponent#25 d=14.9
+03:36:44.760 post ok
+03:36:44.761 pre drop EnergyGridDecorationComponent#24 <-> EnergyGridDecorationComponent#25 d=12
+03:36:44.761 post ok
+03:36:44.761 pre connect 电池 <-> 电池 d=4
+03:36:44.761 post ok
+03:36:44.761 pre connect 电池 <-> 电池 d=4
+03:36:44.761 post ok
+03:36:44.782 pre connect 燃油发电机 <-> 电池 d=6.5
+03:36:44.782 post ok
+03:36:44.782 pre connect 电池 <-> EnergyGridDecorationComponent#15 d=2.7
+03:36:44.782 post ok
+03:36:44.783 pre connect 电池 <-> EnergyGridDecorationComponent#16 d=10
+03:36:44.783 post ok
+03:36:44.783 pre connect 拆瓶机 <-> EnergyGridDecorationComponent#15 d=15.1
+03:36:44.783 post ok
+03:36:44.805 pre connect 电池 <-> EnergyGridDecorationComponent#24 d=6.1
+03:36:44.805 post ok
+03:36:44.805 run end added=7 removed=14 merged=0 buildings=0 unreachable=0 rebuild=yes gain=40.2%
+03:53:21.879 run start (auto) nodes=27 existing=30 add=1 remove=0 merge=0 unreachable=0 rebuild=no
+03:53:21.904 pre connect 电池 <-> EnergyGridDecorationComponent#26 d=6.1
+03:53:21.905 post ok
+03:53:21.906 run end added=1 removed=0 merged=0 buildings=0 unreachable=0 rebuild=no
+03:55:01.863 run start (auto) nodes=27 existing=30 add=1 remove=0 merge=0 unreachable=0 rebuild=no
+03:55:01.885 pre connect 电池 <-> EnergyGridDecorationComponent#26 d=6.1
+03:55:01.886 post ok
+03:55:01.886 run end added=1 removed=0 merged=0 buildings=0 unreachable=0 rebuild=no
+04:03:14.011 run start (auto) nodes=27 existing=30 add=1 remove=0 merge=0 unreachable=0 rebuild=no
+04:03:14.037 pre connect 电池 <-> EnergyGridDecorationComponent#26 d=6.1
+04:03:14.038 post ok
+04:03:14.038 run end added=1 removed=0 merged=0 buildings=0 unreachable=0 rebuild=no
+04:06:24.162 run start (manual) nodes=27 existing=31 add=7 remove=14 merge=0 unreachable=0 rebuild=yes
+04:06:24.162 pre drop EnergyGridDecorationComponent#0 <-> 电池 d=6.6
+04:06:24.164 post ok
+04:06:24.164 pre drop EnergyGridDecorationComponent#0 <-> 电池 d=10.6
+04:06:24.164 post ok
+04:06:24.164 pre drop 电池 <-> 电池 d=8
+04:06:24.164 post ok
+04:06:24.164 pre drop 电池 <-> 电池 d=8.2
+04:06:24.164 post ok
+04:06:24.186 pre drop 拆瓶机 <-> 电池 d=17.8
+04:06:24.186 post ok
+04:06:24.186 pre drop 木柴发电机 <-> EnergyGridDecorationComponent#15 d=17.4
+04:06:24.187 post ok
+04:06:24.187 pre drop 制造厂 <-> EnergyGridDecorationComponent#13 d=14.5
+04:06:24.187 post ok
+04:06:24.187 pre drop EnergyGridDecorationComponent#13 <-> EnergyGridDecorationComponent#18 d=12
+04:06:24.188 post ok
+04:06:24.217 pre drop 黄船 <-> EnergyGridDecorationComponent#16 d=16.6
+04:06:24.218 post ok
+04:06:24.218 pre drop EnergyGridDecorationComponent#15 <-> EnergyGridDecorationComponent#16 d=12.2
+04:06:24.218 post ok
+04:06:24.218 pre drop EnergyGridDecorationComponent#16 <-> 木柴发电机 d=19.3
+04:06:24.218 post ok
+04:06:24.218 pre drop 电池 <-> 电池 d=8.5
+04:06:24.218 post ok
+04:06:24.240 pre drop 电器工房 <-> EnergyGridDecorationComponent#25 d=14.9
+04:06:24.240 post ok
+04:06:24.240 pre drop EnergyGridDecorationComponent#24 <-> EnergyGridDecorationComponent#25 d=12
+04:06:24.241 post ok
+04:06:24.241 pre connect 电池 <-> 电池 d=4
+04:06:24.241 post ok
+04:06:24.241 pre connect 电池 <-> 电池 d=4
+04:06:24.241 post ok
+04:06:24.264 pre connect 燃油发电机 <-> 电池 d=6.5
+04:06:24.264 post ok
+04:06:24.264 pre connect 电池 <-> EnergyGridDecorationComponent#15 d=2.7
+04:06:24.264 post ok
+04:06:24.264 pre connect 电池 <-> EnergyGridDecorationComponent#16 d=10
+04:06:24.264 post ok
+04:06:24.264 pre connect 拆瓶机 <-> EnergyGridDecorationComponent#15 d=15.1
+04:06:24.265 post ok
+04:06:24.286 pre connect 电池 <-> EnergyGridDecorationComponent#24 d=6.1
+04:06:24.286 post ok
+04:06:24.287 run end added=7 removed=14 merged=0 buildings=0 unreachable=0 rebuild=yes gain=40.2%
+14:41:32.887 run start (auto) nodes=27 existing=30 add=1 remove=0 merge=0 unreachable=0 rebuild=no
+14:41:32.912 pre connect 电池 <-> EnergyGridDecorationComponent#26 d=6.1
+14:41:32.912 post ok
+14:41:32.913 run end added=1 removed=0 merged=0 buildings=0 unreachable=0 rebuild=no
+14:41:35.062 run start (manual) nodes=27 existing=31 add=7 remove=14 merge=0 unreachable=0 rebuild=yes
+14:41:35.063 pre drop EnergyGridDecorationComponent#0 <-> 电池 d=6.6
+14:41:35.065 post ok
+14:41:35.065 pre drop EnergyGridDecorationComponent#0 <-> 电池 d=10.6
+14:41:35.065 post ok
+14:41:35.065 pre drop 电池 <-> 电池 d=8
+14:41:35.065 post ok
+14:41:35.065 pre drop 电池 <-> 电池 d=8.2
+14:41:35.065 post ok
+14:41:35.099 pre drop 拆瓶机 <-> 电池 d=17.8
+14:41:35.099 post ok
+14:41:35.099 pre drop 木柴发电机 <-> EnergyGridDecorationComponent#15 d=17.4
+14:41:35.099 post ok
+14:41:35.099 pre drop 制造厂 <-> EnergyGridDecorationComponent#13 d=14.5
+14:41:35.099 post ok
+14:41:35.099 pre drop EnergyGridDecorationComponent#13 <-> EnergyGridDecorationComponent#18 d=12
+14:41:35.100 post ok
+14:41:35.128 pre drop 黄船 <-> EnergyGridDecorationComponent#16 d=16.6
+14:41:35.128 post ok
+14:41:35.128 pre drop EnergyGridDecorationComponent#15 <-> EnergyGridDecorationComponent#16 d=12.2
+14:41:35.128 post ok
+14:41:35.128 pre drop EnergyGridDecorationComponent#16 <-> 木柴发电机 d=19.3
+14:41:35.128 post ok
+14:41:35.128 pre drop 电池 <-> 电池 d=8.5
+14:41:35.129 post ok
+14:41:35.153 pre drop 电器工房 <-> EnergyGridDecorationComponent#25 d=14.9
+14:41:35.153 post ok
+14:41:35.153 pre drop EnergyGridDecorationComponent#24 <-> EnergyGridDecorationComponent#25 d=12
+14:41:35.154 post ok
+14:41:35.154 pre connect 电池 <-> 电池 d=4
+14:41:35.154 post ok
+14:41:35.154 pre connect 电池 <-> 电池 d=4
+14:41:35.154 post ok
+14:41:35.177 pre connect 燃油发电机 <-> 电池 d=6.5
+14:41:35.177 post ok
+14:41:35.177 pre connect 电池 <-> EnergyGridDecorationComponent#15 d=2.7
+14:41:35.179 post ok
+14:41:35.179 pre connect 电池 <-> EnergyGridDecorationComponent#16 d=10
+14:41:35.179 post ok
+14:41:35.179 pre connect 拆瓶机 <-> EnergyGridDecorationComponent#15 d=15.1
+14:41:35.179 post ok
+14:41:35.208 pre connect 电池 <-> EnergyGridDecorationComponent#24 d=6.1
+14:41:35.208 post ok
+14:41:35.209 run end added=7 removed=14 merged=0 buildings=0 unreachable=0 rebuild=yes gain=40.2%
+14:42:35.131 run start (auto) nodes=28 existing=24 add=1 remove=0 merge=0 unreachable=0 rebuild=no
+14:42:35.162 pre connect EnergyGridDecorationComponent#11 <-> 电池 d=4.7
+14:42:35.162 post ok
+14:42:35.162 run end added=1 removed=0 merged=0 buildings=1 unreachable=0 rebuild=no
+14:42:45.147 run start (auto) nodes=29 existing=25 add=1 remove=0 merge=0 unreachable=0 rebuild=no
+14:42:45.173 pre connect 木柴发电机 <-> 电池 d=3.1
+14:42:45.173 post ok
+14:42:45.173 run end added=1 removed=0 merged=0 buildings=1 unreachable=0 rebuild=no
+14:53:35.996 run start (auto) nodes=30 existing=26 add=1 remove=0 merge=0 unreachable=0 rebuild=no
+14:53:36.022 pre connect EnergyGridDecorationComponent#10 <-> 液压机 d=6.1
+14:53:36.022 post ok
+14:53:36.022 run end added=1 removed=0 merged=0 buildings=1 unreachable=0 rebuild=no
+14:53:56.028 run start (auto) nodes=30 existing=16 add=8 remove=0 merge=0 unreachable=0 rebuild=no
+14:53:56.053 pre connect EnergyGridDecorationComponent#0 <-> 电池 d=2.7
+14:53:56.053 post ok
+14:53:56.054 pre connect 电池 <-> EnergyGridDecorationComponent#20 d=4.7
+14:53:56.054 post ok
+14:53:56.054 pre connect 电池 <-> EnergyGridDecorationComponent#28 d=8.4
+14:53:56.054 post ok
+14:53:56.054 pre connect 制造厂 <-> EnergyGridDecorationComponent#28 d=4
+14:53:56.054 post ok
+14:53:56.082 pre connect EnergyGridDecorationComponent#28 <-> 液压机 d=6.1
+14:53:56.082 post ok
+14:53:56.082 pre connect EnergyGridDecorationComponent#20 <-> 电力海水淡化器 d=12
+14:53:56.082 post ok
+14:53:56.082 pre connect EnergyGridDecorationComponent#18 <-> 电力海水淡化器 d=4.4
+14:53:56.083 post ok
+14:53:56.083 pre connect EnergyGridDecorationComponent#17 <-> EnergyGridDecorationComponent#18 d=12
+14:53:56.083 post ok
+14:53:56.083 run end added=8 removed=0 merged=0 buildings=4 unreachable=0 rebuild=no
+14:54:26.070 run start (auto) nodes=30 existing=24 add=1 remove=0 merge=0 unreachable=0 rebuild=no
+14:54:26.095 pre connect EnergyGridDecorationComponent#6 <-> EnergyGridDecorationComponent#19 d=14.9
+14:54:26.095 post ok
+14:54:26.095 run end added=1 removed=0 merged=0 buildings=0 unreachable=0 rebuild=no
+14:56:46.244 run start (auto) nodes=31 existing=25 add=1 remove=0 merge=0 unreachable=0 rebuild=no
+14:56:46.271 pre connect EnergyGridDecorationComponent#11 <-> 电力海水淡化器 d=18.1
+14:56:46.271 post ok
+14:56:46.271 run end added=1 removed=0 merged=0 buildings=1 unreachable=0 rebuild=no
+14:57:06.267 run start (auto) nodes=31 existing=24 add=1 remove=0 merge=0 unreachable=0 rebuild=no
+14:57:06.292 pre connect EnergyGridDecorationComponent#11 <-> 电力海水淡化器 d=4.4
+14:57:06.292 post skip(legality)
+14:57:06.292 run end added=0 removed=0 merged=0 buildings=0 unreachable=0 rebuild=no
+14:58:16.382 run start (auto) nodes=31 existing=24 add=1 remove=0 merge=0 unreachable=0 rebuild=no
+14:58:16.411 pre connect 电力海水淡化器 <-> 电力海水淡化器 d=8
+14:58:16.411 post ok
+14:58:16.411 run end added=1 removed=0 merged=0 buildings=1 unreachable=0 rebuild=no
+15:00:46.567 run start (auto) nodes=32 existing=25 add=1 remove=0 merge=0 unreachable=0 rebuild=no
+15:00:46.595 pre connect EnergyGridDecorationComponent#11 <-> 电力废品锻造室 d=11.3
+15:00:46.596 post ok
+15:00:46.596 run end added=1 removed=0 merged=0 buildings=1 unreachable=0 rebuild=no
+15:00:56.574 run start (auto) nodes=33 existing=26 add=1 remove=0 merge=0 unreachable=0 rebuild=no
+15:00:56.605 pre connect EnergyGridDecorationComponent#11 <-> 电力废品锻造室 d=4.2
+15:00:56.606 post ok
+15:00:56.606 run end added=1 removed=0 merged=0 buildings=1 unreachable=0 rebuild=no
+15:01:16.607 run start (auto) nodes=34 existing=27 add=1 remove=0 merge=0 unreachable=0 rebuild=no
+15:01:16.635 pre connect EnergyGridDecorationComponent#7 <-> 电力烧烤店 d=9
+15:01:16.636 post ok
+15:01:16.636 run end added=1 removed=0 merged=0 buildings=1 unreachable=0 rebuild=no
+15:20:08.422 run start (auto) nodes=35 existing=28 add=1 remove=0 merge=0 unreachable=0 rebuild=no
+15:20:08.455 pre connect EnergyGridDecorationComponent#32 <-> 电力生物锅炉 d=3.9
+15:20:08.455 post ok
+15:20:08.455 run end added=1 removed=0 merged=0 buildings=1 unreachable=0 rebuild=no
+15:20:58.480 run start (auto) nodes=35 existing=29 add=1 remove=0 merge=0 unreachable=0 rebuild=no
+15:20:58.509 pre connect 电力废品锻造室 <-> 电力生物锅炉 d=8.6
+15:20:58.509 post ok
+15:20:58.509 run end added=1 removed=0 merged=0 buildings=0 unreachable=0 rebuild=no
+15:58:32.319 run start (auto) nodes=35 existing=30 add=0 remove=0 merge=1 unreachable=0 rebuild=no
+15:58:32.352 pre merge 木柴发电机 <-> 电池 d=3.1
+15:58:32.353 post ok
+15:58:32.353 run end added=0 removed=0 merged=1 buildings=0 unreachable=0 rebuild=no
+16:00:05.056 run start (auto) nodes=36 existing=31 add=1 remove=0 merge=0 unreachable=0 rebuild=no
+16:00:05.091 pre connect 木柴发电机 <-> EnergyGridDecorationComponent#35 d=8.4
+16:00:05.091 post ok
+16:00:05.091 run end added=1 removed=0 merged=0 buildings=0 unreachable=0 rebuild=no
+16:02:21.235 run start (auto) nodes=37 existing=33 add=1 remove=0 merge=0 unreachable=0 rebuild=no
+16:02:21.278 pre connect EnergyGridDecorationComponent#11 <-> 电池 d=3.6
+16:02:21.278 post ok
+16:02:21.278 run end added=1 removed=0 merged=0 buildings=1 unreachable=0 rebuild=no
+16:06:01.670 run start (auto) nodes=37 existing=33 add=1 remove=0 merge=0 unreachable=0 rebuild=no
+16:06:01.708 pre connect EnergyGridDecorationComponent#35 <-> 电动工具制造厂 d=15.4
+16:06:01.708 post skip(legality)
+16:06:01.708 run end added=0 removed=0 merged=0 buildings=0 unreachable=0 rebuild=no
+16:06:11.697 run start (auto) nodes=37 existing=33 add=1 remove=0 merge=0 unreachable=0 rebuild=no
+16:06:11.733 pre connect EnergyGridDecorationComponent#35 <-> 电动工具制造厂 d=15.4
+16:06:11.733 post skip(legality)
+16:06:11.733 run end added=0 removed=0 merged=0 buildings=0 unreachable=0 rebuild=no
+16:07:31.829 run start (auto) nodes=37 existing=33 add=1 remove=0 merge=0 unreachable=0 rebuild=no
+16:07:31.864 pre connect 黄船 <-> 城镇拖船 d=13
+16:07:31.866 post ok
+16:07:31.866 run end added=1 removed=0 merged=0 buildings=1 unreachable=0 rebuild=no
+16:42:56.212 run start (auto) nodes=38 existing=33 add=2 remove=0 merge=0 unreachable=0 rebuild=no
+16:42:56.250 pre connect EnergyGridDecorationComponent#15 <-> 电池 d=7.6
+16:42:56.250 post ok
+16:42:56.250 pre connect 电池 <-> 电池 d=4
+16:42:56.250 post ok
+16:42:56.250 run end added=2 removed=0 merged=0 buildings=2 unreachable=0 rebuild=no
+16:43:16.238 run start (auto) nodes=40 existing=35 add=2 remove=0 merge=0 unreachable=0 rebuild=no
+16:43:16.278 pre connect EnergyGridDecorationComponent#28 <-> 电池 d=2.7
+16:43:16.278 post ok
+16:43:16.278 pre connect EnergyGridDecorationComponent#28 <-> 电池 d=3.9
+16:43:16.279 post ok
+16:43:16.279 run end added=2 removed=0 merged=0 buildings=2 unreachable=0 rebuild=no
+16:43:26.248 run start (auto) nodes=43 existing=37 add=3 remove=0 merge=0 unreachable=0 rebuild=no
+16:43:26.293 pre connect 电池 <-> 电池 d=4
+16:43:26.293 post ok
+16:43:26.293 pre connect 电池 <-> 电池 d=4
+16:43:26.293 post ok
+16:43:26.293 pre connect 电池 <-> 电池 d=4
+16:43:26.295 post ok
+16:43:26.295 run end added=3 removed=0 merged=0 buildings=3 unreachable=0 rebuild=no
+16:46:16.543 run start (auto) nodes=44 existing=40 add=1 remove=0 merge=0 unreachable=0 rebuild=no
+16:46:16.580 pre connect 制造厂 <-> 油炸场 d=9.4
+16:46:16.580 post ok
+16:46:16.580 run end added=1 removed=0 merged=0 buildings=1 unreachable=0 rebuild=no
+16:47:16.598 run start (auto) nodes=45 existing=41 add=1 remove=0 merge=0 unreachable=0 rebuild=no
+16:47:16.638 pre connect 油炸场 <-> 餐车 d=11.9
+16:47:16.638 post ok
+16:47:16.639 run end added=1 removed=0 merged=0 buildings=1 unreachable=0 rebuild=no
+17:25:53.377 run start (manual) nodes=45 existing=42 add=8 remove=8 merge=0 unreachable=0 rebuild=yes
+17:25:53.380 pre drop EnergyGridDecorationComponent#10 <-> EnergyGridDecorationComponent#20 d=14.9
+17:25:53.382 post ok
+17:25:53.382 pre drop 拆瓶机 <-> EnergyGridDecorationComponent#13 d=15.1
+17:25:53.382 post ok
+17:25:53.382 pre drop 电池 <-> EnergyGridDecorationComponent#18 d=6.1
+17:25:53.383 post ok
+17:25:53.383 pre drop EnergyGridDecorationComponent#27 <-> 电力废品锻造室 d=11.3
+17:25:53.383 post ok
+17:25:53.420 pre drop EnergyGridDecorationComponent#27 <-> 电力海水淡化器 d=18.1
+17:25:53.421 post ok
+17:25:53.421 pre drop 电力废品锻造室 <-> 电力生物锅炉 d=8.6
+17:25:53.421 post ok
+17:25:53.421 pre drop 电池 <-> EnergyGridDecorationComponent#35 d=7.6
+17:25:53.421 post ok
+17:25:53.421 pre drop 电池 <-> EnergyGridDecorationComponent#37 d=8.4
+17:25:53.421 post ok
+17:25:53.452 pre connect 电池 <-> 电池 d=4
+17:25:53.453 post ok
+17:25:53.454 pre connect 电池 <-> 电池 d=4
+17:25:53.454 post ok
+17:25:53.454 pre connect EnergyGridDecorationComponent#20 <-> 电池 d=5.6
+17:25:53.454 post ok
+17:25:53.454 pre connect 电力废品锻造室 <-> 电力废品锻造室 d=7.7
+17:25:53.454 post ok
+17:25:53.491 pre connect 拆瓶机 <-> 电力烧烤店 d=7.8
+17:25:53.491 post ok
+17:25:53.492 pre connect 液压机 <-> 电池 d=9.1
+17:25:53.492 post ok
+17:25:53.492 pre connect EnergyGridDecorationComponent#27 <-> 电力海水淡化器 d=10.4
+17:25:53.492 post ok
+17:25:53.492 pre connect 电力废品锻造室 <-> 电力生物锅炉 d=11.2
+17:25:53.492 post ok
+17:25:53.492 run end added=8 removed=8 merged=0 buildings=0 unreachable=0 rebuild=yes gain=10.2%
+17:28:40.555 run start (auto) nodes=46 existing=42 add=1 remove=0 merge=0 unreachable=0 rebuild=no
+17:28:40.589 pre connect 餐车 <-> 高级电器工坊 d=11.7
+17:28:40.590 post ok
+17:28:40.590 run end added=1 removed=0 merged=0 buildings=1 unreachable=0 rebuild=no
+20:20:36.891 run start (auto) nodes=46 existing=41 add=1 remove=0 merge=0 unreachable=0 rebuild=no
+20:20:36.913 pre connect EnergyGridDecorationComponent#41 <-> 木柴发电机 d=15
+20:20:36.915 post ok
+20:20:36.916 run end added=1 removed=0 merged=0 buildings=1 unreachable=0 rebuild=no
+20:20:46.912 run start (auto) nodes=46 existing=40 add=1 remove=0 merge=0 unreachable=0 rebuild=no
+20:20:46.937 pre connect 木柴发电机 <-> 木柴发电机 d=6
+20:20:46.937 post ok
+20:20:46.938 run end added=1 removed=0 merged=0 buildings=1 unreachable=0 rebuild=no
+20:21:36.989 run start (auto) nodes=46 existing=36 add=1 remove=0 merge=0 unreachable=0 rebuild=no
+20:21:37.014 pre connect 电池 <-> EnergyGridDecorationComponent#40 d=8.4
+20:21:37.014 post ok
+20:21:37.015 run end added=1 removed=0 merged=0 buildings=0 unreachable=0 rebuild=no
+20:22:27.032 run start (auto) nodes=46 existing=35 add=1 remove=0 merge=0 unreachable=0 rebuild=no
+20:22:27.055 pre connect EnergyGridDecorationComponent#5 <-> 电器工房 d=3.1
+20:22:27.055 post ok
+20:22:27.056 run end added=1 removed=0 merged=0 buildings=1 unreachable=0 rebuild=no
+20:22:37.033 run start (auto) nodes=46 existing=33 add=2 remove=0 merge=0 unreachable=0 rebuild=no
+20:22:37.055 pre connect EnergyGridDecorationComponent#5 <-> 电力烧烤店 d=7.4
+20:22:37.056 post ok
+20:22:37.056 pre connect 电力烧烤店 <-> 拆瓶机 d=7.8
+20:22:37.056 post ok
+20:22:37.056 run end added=2 removed=0 merged=0 buildings=2 unreachable=0 rebuild=no
+20:22:47.042 run start (auto) nodes=46 existing=33 add=1 remove=0 merge=0 unreachable=0 rebuild=no
+20:22:47.065 pre connect 电池 <-> EnergyGridDecorationComponent#44 d=6.1
+20:22:47.065 post ok
+20:22:47.065 run end added=1 removed=0 merged=0 buildings=0 unreachable=0 rebuild=no
+20:22:57.057 run start (auto) nodes=46 existing=31 add=2 remove=0 merge=0 unreachable=0 rebuild=no
+20:22:57.081 pre connect 拆瓶机 <-> EnergyGridDecorationComponent#45 d=9.4
+20:22:57.081 post ok
+20:22:57.081 pre connect EnergyGridDecorationComponent#44 <-> EnergyGridDecorationComponent#45 d=12
+20:22:57.081 post ok
+20:22:57.081 run end added=2 removed=0 merged=0 buildings=0 unreachable=0 rebuild=no
+20:25:27.276 run start (auto) nodes=46 existing=31 add=2 remove=0 merge=0 unreachable=0 rebuild=no
+20:25:27.298 pre connect 拆瓶机 <-> EnergyGridDecorationComponent#45 d=9.4
+20:25:27.299 post ok
+20:25:27.299 pre connect EnergyGridDecorationComponent#34 <-> EnergyGridDecorationComponent#45 d=12
+20:25:27.299 post ok
+20:25:27.299 run end added=2 removed=0 merged=0 buildings=0 unreachable=0 rebuild=no
+20:25:37.283 run start (auto) nodes=46 existing=31 add=2 remove=0 merge=0 unreachable=0 rebuild=no
+20:25:37.306 pre connect EnergyGridDecorationComponent#35 <-> EnergyGridDecorationComponent#41 d=12
+20:25:37.306 post ok
+20:25:37.306 pre connect EnergyGridDecorationComponent#34 <-> 拆瓶机 d=15.1
+20:25:37.306 post ok
+20:25:37.306 run end added=2 removed=0 merged=0 buildings=0 unreachable=0 rebuild=no
+20:25:47.294 run start (auto) nodes=46 existing=32 add=1 remove=0 merge=0 unreachable=0 rebuild=no
+20:25:47.317 pre connect EnergyGridDecorationComponent#13 <-> EnergyGridDecorationComponent#34 d=12.7
+20:25:47.318 post ok
+20:25:47.318 run end added=1 removed=0 merged=0 buildings=0 unreachable=0 rebuild=no
+20:26:18.527 run start (auto) nodes=46 existing=31 add=1 remove=0 merge=0 unreachable=1 rebuild=no
+20:26:18.551 pre connect EnergyGridDecorationComponent#37 <-> 拆瓶机 d=13.1
+20:26:18.551 post ok
+20:26:18.551 run end added=1 removed=0 merged=0 buildings=1 unreachable=1 rebuild=no
+20:27:53.134 run start (auto) nodes=46 existing=31 add=1 remove=0 merge=0 unreachable=1 rebuild=no
+20:27:53.156 pre connect EnergyGridDecorationComponent#37 <-> 拆瓶机 d=7.3
+20:27:53.157 post ok
+20:27:53.157 run end added=1 removed=0 merged=0 buildings=1 unreachable=1 rebuild=no
+20:30:20.209 run start (auto) nodes=46 existing=32 add=1 remove=0 merge=0 unreachable=0 rebuild=no
+20:30:20.232 pre connect 液压机 <-> 电力烧烤店 d=4.8
+20:30:20.233 post ok
+20:30:20.233 run end added=1 removed=0 merged=0 buildings=1 unreachable=0 rebuild=no
+20:33:59.693 run start (manual) nodes=46 existing=33 add=0 remove=0 merge=0 unreachable=0 rebuild=no
+20:33:59.693 run end added=0 removed=0 merged=0 buildings=0 unreachable=0 rebuild=no rebuildSkip=gain<25.9
+20:34:11.044 run start (manual) nodes=46 existing=33 add=0 remove=0 merge=0 unreachable=0 rebuild=no
+20:34:11.044 run end added=0 removed=0 merged=0 buildings=0 unreachable=0 rebuild=no rebuildSkip=gain<25.9
+20:34:34.553 run start (manual) nodes=46 existing=33 add=0 remove=0 merge=0 unreachable=0 rebuild=no
+20:34:34.553 run end added=0 removed=0 merged=0 buildings=0 unreachable=0 rebuild=no rebuildSkip=gain<25.9
+20:34:54.561 run start (auto) nodes=46 existing=37 add=1 remove=0 merge=0 unreachable=0 rebuild=no
+20:34:54.586 pre connect 电池 <-> 电池 d=4
+20:34:54.587 post ok
+20:34:54.587 run end added=1 removed=0 merged=0 buildings=1 unreachable=0 rebuild=no
+20:35:04.582 run start (auto) nodes=46 existing=40 add=1 remove=0 merge=0 unreachable=0 rebuild=no
+20:35:04.608 pre connect 电池 <-> 电池 d=4
+20:35:04.608 post ok
+20:35:04.608 run end added=1 removed=0 merged=0 buildings=0 unreachable=0 rebuild=no
+20:35:12.754 run start (manual) nodes=46 existing=42 add=0 remove=0 merge=0 unreachable=0 rebuild=no
+20:35:12.754 run end added=0 removed=0 merged=0 buildings=0 unreachable=0 rebuild=no rebuildSkip=gain<31.6
+20:54:19.806 run start (auto) nodes=47 existing=42 add=1 remove=0 merge=0 unreachable=0 rebuild=no
+20:54:19.832 pre connect 电池 <-> 电动工具制造厂 d=4.7
+20:54:19.832 post ok
+20:54:19.832 run end added=1 removed=0 merged=0 buildings=1 unreachable=0 rebuild=no
+20:54:45.396 run start (manual) nodes=47 existing=43 add=0 remove=0 merge=0 unreachable=0 rebuild=no
+20:54:45.396 run end added=0 removed=0 merged=0 buildings=0 unreachable=0 rebuild=no rebuildSkip=gain<32.1
+22:12:53.290 run start (auto) nodes=48 existing=44 add=1 remove=0 merge=0 unreachable=0 rebuild=no
+22:12:53.329 pre connect 电力烧烤店 <-> 电力烧烤店 d=6
+22:12:53.330 post ok
+22:12:53.330 run end added=1 removed=0 merged=0 buildings=1 unreachable=0 rebuild=no
+22:40:47.165 run start (auto) nodes=48 existing=39 add=4 remove=0 merge=0 unreachable=0 rebuild=no
+22:40:47.207 pre connect 电力生物锅炉 <-> 电池 d=5.2
+22:40:47.207 post ok
+22:40:47.207 pre connect 电动工具制造厂 <-> 电力生物锅炉 d=5.1
+22:40:47.207 post ok
+22:40:47.208 pre connect EnergyGridDecorationComponent#32 <-> EnergyGridDecorationComponent#46 d=12
+22:40:47.208 post ok
+22:40:47.208 pre connect EnergyGridDecorationComponent#37 <-> EnergyGridDecorationComponent#46 d=12
+22:40:47.208 post ok
+22:40:47.208 run end added=4 removed=0 merged=0 buildings=3 unreachable=0 rebuild=no
+22:40:57.166 run start (auto) nodes=48 existing=41 add=2 remove=0 merge=0 unreachable=0 rebuild=no
+22:40:57.207 pre connect 电池 <-> 电力生物锅炉 d=6.8
+22:40:57.207 post ok
+22:40:57.208 pre connect 电动工具制造厂 <-> 电力废品锻造室 d=7
+22:40:57.208 post ok
+22:40:57.208 run end added=2 removed=0 merged=0 buildings=3 unreachable=0 rebuild=no
+22:41:07.188 run start (auto) nodes=48 existing=42 add=1 remove=0 merge=0 unreachable=0 rebuild=no
+22:41:07.229 pre connect 电池 <-> 电力生物锅炉 d=6.9
+22:41:07.229 post ok
+22:41:07.229 run end added=1 removed=0 merged=0 buildings=2 unreachable=0 rebuild=no
+22:41:17.225 run start (auto) nodes=48 existing=42 add=1 remove=0 merge=0 unreachable=0 rebuild=no
+22:41:17.266 pre connect 电动工具制造厂 <-> 电力生物锅炉 d=5.1
+22:41:17.266 post ok
+22:41:17.266 run end added=1 removed=0 merged=0 buildings=1 unreachable=0 rebuild=no
+22:42:22.790 run start (auto) nodes=49 existing=43 add=1 remove=0 merge=0 unreachable=0 rebuild=no
+22:42:22.832 pre connect EnergyGridDecorationComponent#36 <-> 豪华餐厅 d=7
+22:42:22.832 post ok
+22:42:22.832 run end added=1 removed=0 merged=0 buildings=1 unreachable=0 rebuild=no

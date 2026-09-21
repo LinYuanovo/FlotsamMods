@@ -1,3 +1,7 @@
 {
-  "schema": "1"
+  "schema": "1",
+  "window.x": "18.75",
+  "window.y": "42.75",
+  "button.x": "-386.25",
+  "button.y": "473"
 }

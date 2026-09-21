@@ -2,9 +2,9 @@
   "drivingEnabled": "1",
   "hud.x": "-818.75",
   "hud.y": "162.75",
-  "showHud": "1",
+  "showHud": "0",
   "button.x": "234.75",
-  "button.y": "-1.25",
+  "button.y": "-2.75",
   "hud.w": "240",
   "hud.h": "278",
   "hud.tips": "0"

@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "id": "flotsam.perfboost",
+  "name": "性能优化与探针",
+  "version": "2.1.1",
+  "author": "ModKit",
+  "description": "F9 性能面板（帧率/主线程/渲染线程/脚本热点秒表/渲染统计，定期写日志）+ 可独立开关的运行时优化：关 CTAA 空转、掐断粒子销毁日志刷屏、阴影距离上限钳制、离屏动画剔除、水花粒子密度、URP 渲染比例、实验性物理步长。每项可关，禁用 mod 即全部回原版。",
+  "apiVersion": "1.1",
+  "gameVersionRange": ">=1.0.0",
+  "type": "code",
+  "restartRequired": false,
+  "entryAssembly": "FlotsamMod.PerfBoost.dll",
+  "entryType": "FlotsamMods.PerfBoost.PerfBoostMod",
+  "dependencies": [],
+  "permissions": ["ui", "keybinds", "config"],
+  "keybinds": [
+    { "id": "perfboost.overlay", "default": "F9", "display": "开关性能面板(F9)" }
+  ]
+}

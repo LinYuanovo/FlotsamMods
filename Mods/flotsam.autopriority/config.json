@@ -3,7 +3,7 @@
   "active": "1",
   "button.x": "-252.75",
   "button.y": "473.25",
-  "autoSpend": "0",
-  "spendbutton.x": "-250.5",
+  "autoSpend": "1",
+  "spendbutton.x": "-252.75",
   "spendbutton.y": "422.5"
 }

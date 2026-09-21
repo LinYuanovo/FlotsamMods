@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>FlotsamMod.PerfBoost</AssemblyName>
+    <RootNamespace>FlotsamMods.PerfBoost</RootNamespace>
+    <Version>1.1.0</Version>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- Private=false: the mod folder must contain ONLY this DLL; the shared contracts
+         are loaded once by the host, so every mod binds to the same interface identity. -->
+    <ProjectReference Include="..\..\Flotsam.ModKit.Abstractions\Flotsam.ModKit.Abstractions.csproj" Private="false" />
+    <ProjectReference Include="..\..\Flotsam.ModKit.Game\Flotsam.ModKit.Game.csproj" Private="false" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- URP runtime types are patched directly (per-camera render timing). -->
+    <Reference Include="Unity.RenderPipelines.Universal.Runtime">
+      <HintPath>$(GameManaged)\Unity.RenderPipelines.Universal.Runtime.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+</Project>
