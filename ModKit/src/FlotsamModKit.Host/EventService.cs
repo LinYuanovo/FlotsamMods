@@ -70,6 +70,30 @@ namespace FlotsamModKit.Host
             try { GameEventDispatcher.RemoveListener(sub.Type, sub.Callback); } catch { }
         }
 
+        /// <summary>
+        /// Re-registers every tracked subscription and returns how many were restored.
+        /// The game wipes ALL GameEventDispatcher listeners at the start of every scene load
+        /// (LoadingScreen.LoadSceneCoroutine → RemoveAllGameEventListeners, decompile 105273),
+        /// so anything subscribed at boot (mod OnEnable, main menu) is dead once a save loads.
+        /// ModKitRuntime calls this on the IsPlaying rising edge. Remove-then-add makes it
+        /// idempotent whether or not the listener actually got wiped.
+        /// </summary>
+        public int RestoreAll()
+        {
+            int n = 0;
+            foreach (var sub in _subs.ToArray())
+            {
+                try
+                {
+                    GameEventDispatcher.RemoveListener(sub.Type, sub.Callback);
+                    GameEventDispatcher.AddListener(sub.Type, sub.Callback);
+                    n++;
+                }
+                catch { }
+            }
+            return n;
+        }
+
         /// <summary>Called when the owning mod is disabled.</summary>
         public void ClearAll()
         {

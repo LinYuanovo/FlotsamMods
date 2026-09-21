@@ -17,7 +17,7 @@ namespace FlotsamModKit.Host
     public sealed class ModKitRuntime : MonoBehaviour
     {
         public const string HostApiVersion = "1.1";
-        public const string HostVersion = "1.0.0";
+        public const string HostVersion = "1.0.1";
 
         public static ModKitRuntime Instance { get; private set; }
 
@@ -27,7 +27,6 @@ namespace FlotsamModKit.Host
         private readonly List<ModEntry> _entries = new List<ModEntry>();
         private readonly List<Action> _deferred = new List<Action>();
         private ConfigService _settings;
-        private EventService _hostBus;
         private ManagerWindow _window;
         private bool _gameStarted;
         private float _nextStateSave;
@@ -55,7 +54,6 @@ namespace FlotsamModKit.Host
             NativeSkin.DumpPath = Path.Combine(ModsDirectory, "nativeskin_names.txt");
 
             DiscoverMods();
-            WireGameEvents();
             ApplySavedStates();
 
             int enabled = 0;
@@ -219,30 +217,44 @@ namespace FlotsamModKit.Host
             return null;
         }
 
-        // ------------------------------------------------------------ game events
+        // ------------------------------------------------------------ game session
 
-        private void WireGameEvents()
+        /// <summary>
+        /// GameStart/GameEnd delivery by polling the <see cref="GameApi.IsPlaying"/> edge.
+        /// This must NOT go through GameEventDispatcher: the game wipes EVERY dispatcher
+        /// listener at the start of each scene load (LoadingScreen.LoadSceneCoroutine →
+        /// RemoveAllGameEventListeners, decompile 105273), so the host's own boot-time "GameStart"
+        /// subscription — and every mod's Events.On made in OnEnable on the main menu — was
+        /// silently dead the moment a save loaded (root cause of "autopriority never fired on
+        /// level-up"; mods with window-open refresh / heartbeat fallbacks merely hid it).
+        /// Polling cannot be wiped; on the rising edge we first re-register every mod's tracked
+        /// subscriptions (EventService.RestoreAll), THEN hand out OnGameStart.
+        /// </summary>
+        private void PollGameSession()
         {
-            _hostBus = new EventService(new ModLogger(Log, "modkit"));
+            bool playing = GameApi.IsPlaying;
+            if (playing == _gameStarted) return;
+            _gameStarted = playing;
 
-            _hostBus.On("GameStart", _ =>
+            if (playing)
             {
-                // A new game/load replaces all live objects, so re-run the per-game hook.
-                _gameStarted = true;
-                if (Ui != null) Ui.ManagerWindowVisible = Ui.ManagerWindowVisible; // no-op, keeps UI alive
+                int restored = 0;
+                foreach (var entry in _entries)
+                {
+                    try { restored += entry.Events?.RestoreAll() ?? 0; } catch { }
+                }
+                Log.Write("modkit", "INFO", $"game session start — re-registered {restored} mod listener(s) wiped by the scene-load purge");
                 foreach (var entry in _entries) entry.GameStart();
                 Log.Write("modkit", "INFO", "GameStart dispatched to mods");
-            });
-
-            _hostBus.On("GameEnd", _ =>
+            }
+            else
             {
-                _gameStarted = false;
                 // Harvested sprites and fonts belong to the scene that just went away.
                 try { Ui?.ResetSkin(); } catch { }
                 foreach (var entry in _entries) entry.GameEnd();
                 SaveAllConfigs();
                 Log.Write("modkit", "INFO", "GameEnd dispatched to mods");
-            });
+            }
         }
 
         // ------------------------------------------------------------ per frame
@@ -260,6 +272,8 @@ namespace FlotsamModKit.Host
                         try { a(); } catch (Exception e) { Log.Write("modkit", "ERROR", "deferred action failed: " + e.Message); }
                     }
                 }
+
+                PollGameSession();
 
                 foreach (var entry in _entries) entry.Keybinds?.Poll();
 
@@ -349,7 +363,6 @@ namespace FlotsamModKit.Host
             {
                 foreach (var entry in _entries) entry.Disable(keepDesiredFlag: true);
                 SaveAllConfigs();
-                _hostBus?.ClearAll();
                 Ui?.DestroyAll();
             }
             catch { }

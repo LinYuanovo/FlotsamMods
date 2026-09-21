@@ -82,7 +82,11 @@ namespace FlotsamMods.BatchManager
             Ui.Toast("批量管理就绪：Ctrl+1 开关；勾选即在世界中高亮，◀▶ 逐个跳转核对", ToastKind.Success);
         }
 
-        public override void OnGameEnd() => Teardown();
+        public override void OnGameEnd()
+        {
+            _iconSet = false;   // harvested sprites die with the scene; re-apply the icon next save
+            Teardown();
+        }
 
         public override void OnTick()
         {

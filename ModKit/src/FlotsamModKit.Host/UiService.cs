@@ -33,6 +33,7 @@ namespace FlotsamModKit.Host
         private readonly List<HudButton> _buttons = new List<HudButton>();
         private readonly Dictionary<HudAnchor, int> _slots = new Dictionary<HudAnchor, int>();
         private bool _skinLogged;
+        private bool _buttonsReskinned;
 
         public UiService(ModKitLog log)
         {
@@ -96,6 +97,7 @@ namespace FlotsamModKit.Host
         public void ResetSkin()
         {
             _skinLogged = false;
+            _buttonsReskinned = false;
             NativeSkin.Reset();
         }
 
@@ -118,6 +120,7 @@ namespace FlotsamModKit.Host
             EnsureSkin();
             var button = new HudButton(this, _hudCanvas.transform, id, label, onClick, anchor, NextSlot(anchor));
             _buttons.Add(button);
+            if (_buttonsReskinned) button.Reskin();   // created after the skin was up
             return button;
         }
 
@@ -204,9 +207,15 @@ namespace FlotsamModKit.Host
             bool playing = GameApi.IsPlaying;
 
             // Buttons created before a save was loaded had to fall back to procedural art;
-            // give them the native chrome as soon as it exists.
-            if (playing && EnsureSkin())
+            // give them the native chrome as soon as it exists. The reskin pass is driven by
+            // its own flag, NOT by EnsureSkin()'s one-shot latch: an early harvest from any
+            // other call site (a mod toasting inside OnGameStart, which the host delivers
+            // before Ui.Tick) would otherwise latch EnsureSkin and swallow the pass, leaving
+            // every button on square procedural art for the whole session.
+            if (playing) EnsureSkin();
+            if (playing && !_buttonsReskinned && NativeSkin.Available)
             {
+                _buttonsReskinned = true;
                 foreach (var b in _buttons) b.Reskin();
             }
 
