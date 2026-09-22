@@ -17,7 +17,7 @@ namespace FlotsamModKit.Host
     public sealed class ModKitRuntime : MonoBehaviour
     {
         public const string HostApiVersion = "1.1";
-        public const string HostVersion = "1.0.1";
+        public const string HostVersion = "1.0.2";
 
         public static ModKitRuntime Instance { get; private set; }
 
