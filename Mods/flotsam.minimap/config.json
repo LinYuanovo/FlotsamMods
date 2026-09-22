@@ -1,14 +1,14 @@
 {
   "followTownheart": "1",
   "visible": "0",
-  "viewRange": "881.5209",
+  "viewRange": "885.9382",
   "schema": "2",
   "button.x": "-252.75",
   "button.y": "-1.25",
-  "window.x": "522",
-  "window.y": "-281",
+  "window.x": "512.25",
+  "window.y": "-280.25",
   "window.tips": "0",
-  "window.w": "375.5",
-  "window.h": "260",
+  "window.w": "369.5",
+  "window.h": "371.5",
   "window.top": "0"
 }
