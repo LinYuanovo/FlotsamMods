@@ -3,7 +3,7 @@
   "id": "flotsam.powerlink",
   "name": "一键电网",
   "version": "1.0.0",
-  "author": "ModKit",
+  "author": "临渊",
   "description": "Ctrl+2 一键把所有够得着的未供电建筑按最短电缆接入带电网络（可经已建电线杆接力）；可选整理既有连线、缺电×富余电网智能互济合并、常驻自动模式。连接由游戏原生逻辑执行并随存档保存。",
   "apiVersion": "1.1",
   "gameVersionRange": ">=1.0.0",

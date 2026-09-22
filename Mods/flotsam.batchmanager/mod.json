@@ -3,7 +3,7 @@
   "id": "flotsam.batchmanager",
   "name": "批量管理",
   "version": "1.0.0",
-  "author": "ModKit",
+  "author": "临渊",
   "description": "按建筑型号分组勾选多个实例，批量拆除/取消拆除、批量升级/取消升级、启用/停用；勾选即在世界中高亮描边，◀▶ 逐个跳转核对，超过阈值的批量拆除需内联二次确认。Ctrl+1 开关窗口。",
   "apiVersion": "1.1",
   "gameVersionRange": ">=1.0.0",

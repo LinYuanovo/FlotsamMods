@@ -3,7 +3,7 @@
   "id": "flotsam.buildingfinder",
   "name": "建筑快速查找",
   "version": "3.0.0",
-  "author": "ModKit",
+  "author": "临渊",
   "description": "一键查看全部已建建筑：左侧为游戏原生的分类（含原生分类图标与配色，并显示每类数量），右侧按游戏自己的排序显示建筑（图标/名称/建造状态/故障数）；支持名称与分类搜索。窗口改用游戏本体的九宫格面板/按钮贴图与本体 TMP 字体，HUD 按钮与窗口位置都可拖拽并自动记忆，双击标题栏复位。",
   "apiVersion": "1.1",
   "gameVersionRange": ">=1.0.0",
