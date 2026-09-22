@@ -18,32 +18,44 @@ namespace FlotsamModKit.Game
         public string RebuildSkipReason = "";
         /// <summary>Game state did not allow running (no save / map open / paused).</summary>
         public bool Blocked;
+        /// <summary>Energy-storage buildables (batteries) NOT on the townheart grid after the
+        /// run: they are powered but add no ship range. Live-state count, filled at Done.</summary>
+        public int StoragesOffTownheart;
 
         public bool HasChanges => AddedCables + RemovedCables + MergedCables > 0;
 
         public string SummaryText()
         {
             if (Blocked) return "当前无法连网（未进存档/地图打开/暂停）";
+            string body;
             if (!HasChanges)
-                return Unreachable > 0
+            {
+                body = Unreachable > 0
                     ? $"电网已完整；{Unreachable} 座建筑超出线长（需要电线杆）"
                     : "电网已完整，无需连接";
-            var sb = new StringBuilder();
-            if (RemovedCables > 0) sb.Append($"整理移除 {RemovedCables} 根、");
-            if (ConnectedBuildings > 0) sb.Append($"接入 {ConnectedBuildings} 座建筑、");
-            if (AddedCables > 0 || MergedCables == 0)
-            {
-                sb.Append($"新增 {AddedCables} 根电缆");
-                if (Rebuilt) sb.Append($"（总长 -{GainPct:0.#}%）");
-                if (MergedCables > 0) sb.Append($"，互济合并 {MergedCables} 处");
             }
             else
             {
-                sb.Append($"互济合并 {MergedCables} 处");
-                if (Rebuilt) sb.Append($"（总长 -{GainPct:0.#}%）");
+                var sb = new StringBuilder();
+                if (RemovedCables > 0) sb.Append($"整理移除 {RemovedCables} 根、");
+                if (ConnectedBuildings > 0) sb.Append($"接入 {ConnectedBuildings} 座建筑、");
+                if (AddedCables > 0 || MergedCables == 0)
+                {
+                    sb.Append($"新增 {AddedCables} 根电缆");
+                    if (Rebuilt) sb.Append($"（总长 -{GainPct:0.#}%）");
+                    if (MergedCables > 0) sb.Append($"，互济合并 {MergedCables} 处");
+                }
+                else
+                {
+                    sb.Append($"互济合并 {MergedCables} 处");
+                    if (Rebuilt) sb.Append($"（总长 -{GainPct:0.#}%）");
+                }
+                if (Unreachable > 0) sb.Append($"；{Unreachable} 座超距无法连接");
+                body = sb.ToString();
             }
-            if (Unreachable > 0) sb.Append($"；{Unreachable} 座超距无法连接");
-            return sb.ToString();
+            if (StoragesOffTownheart > 0)
+                body += $"；提示：{StoragesOffTownheart} 个电池未接入船只电网（不增续航）";
+            return body;
         }
 
         public string LogLine()
@@ -57,6 +69,7 @@ namespace FlotsamModKit.Game
               .Append(" rebuild=").Append(Rebuilt ? "yes" : "no");
             if (Rebuilt) sb.Append(" gain=").Append(GainPct.ToString("0.#")).Append('%');
             if (!string.IsNullOrEmpty(RebuildSkipReason)) sb.Append(" rebuildSkip=").Append(RebuildSkipReason);
+            if (StoragesOffTownheart > 0) sb.Append(" storagesOff=").Append(StoragesOffTownheart);
             return sb.ToString();
         }
     }
@@ -189,6 +202,9 @@ namespace FlotsamModKit.Game
         private void Finish()
         {
             _res.ConnectedBuildings = _touched.Count;
+            // Live-state check AFTER all connects/merges: which batteries ended up off the
+            // ship grid (powered by some island → no range contribution).
+            _res.StoragesOffTownheart = GameEnergy.CountStoragesOffTownheart(_snap, _verbose, _log);
             if (_traceStarted) GameEnergy.TraceLine(_tracePath, "run end " + _res.LogLine());
             _done = true;
         }
@@ -368,6 +384,7 @@ namespace FlotsamModKit.Game
                 var pg = new PlannerGrid();
                 try
                 {
+                    pg.IsTownheart = grid.IsTownheartGrid;
                     pg.Powered = grid.IsTownheartGrid
                                  || grid.ReturnEnergyProduction() > 0f
                                  || grid.ReturnStorageEnergy() > 0f;
@@ -465,7 +482,7 @@ namespace FlotsamModKit.Game
             if (verbose)
                 log?.Invoke($"plan: nodes={snap.Nodes.Length} grids={snap.Grids.Length} existing={snap.Existing.Count} " +
                             $"add={plan.Add.Count} remove={plan.Remove.Count} merge={plan.Merge.Count} " +
-                            $"unreachable={plan.Unreachable.Count}");
+                            $"unreachable={plan.Unreachable.Count} toTownheart={plan.AddedToTownheart}");
 
             var ops = new List<EnergyRunSession.Op>(plan.Remove.Count + plan.Add.Count + plan.Merge.Count);
             foreach (var e in plan.Remove) ops.Add(new EnergyRunSession.Op { Kind = EnergyRunSession.OpKind.Remove, Edge = e });
@@ -490,6 +507,34 @@ namespace FlotsamModKit.Game
         {
             if (snap.Nodes[e.A].Kind == PlannerKind.Building && snap.Nodes[e.A].Used == 0) set.Add(e.A);
             if (snap.Nodes[e.B].Kind == PlannerKind.Building && snap.Nodes[e.B].Used == 0) set.Add(e.B);
+        }
+
+        /// <summary>Counts energy-storage buildables (batteries) whose LIVE grid is not the
+        /// townheart grid — they may be powered by an isolated island, which contributes
+        /// nothing to ship range. Reads connector.EnergyGrid after execution (grids have
+        /// merged by then), never the stale snapshot values. Fully defensive.</summary>
+        internal static int CountStoragesOffTownheart(Snapshot snap, bool verbose, Action<string> log)
+        {
+            if (snap == null) return 0;
+            int count = 0;
+            for (int i = 0; i < snap.Connectors.Count; i++)
+            {
+                try
+                {
+                    var bc = snap.Connectors[i] as EnergyGridBuildableComponent;
+                    if (bc == null || bc.Buildable == null) continue;
+                    if (!bc.Buildable.TryReturnBuildableExtendable<EnergyStorage>(out var storage)) continue;
+                    var conn = storage != null ? storage.Connector : null;
+                    var grid = conn != null ? conn.EnergyGrid : null;
+                    if (grid == null || !grid.IsTownheartGrid)
+                    {
+                        count++;
+                        if (verbose) log?.Invoke("storage off townheart: " + NameOf(snap, i));
+                    }
+                }
+                catch { }
+            }
+            return count;
         }
 
         internal static string Describe(Snapshot snap, PlannerEdge e)

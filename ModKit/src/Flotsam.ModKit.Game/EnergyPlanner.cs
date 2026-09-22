@@ -30,6 +30,9 @@ namespace FlotsamModKit.Game
         public bool Deficient;
         /// <summary>Not deficient and has spare production or storage.</summary>
         public bool Surplus;
+        /// <summary>The player's ship (townheart) grid. Growth and merges prioritise it so
+        /// batteries/buildings join the ship rather than a nearer isolated powered island.</summary>
+        public bool IsTownheart;
     }
 
     /// <summary>A possible or existing cable between two nodes.</summary>
@@ -71,6 +74,9 @@ namespace FlotsamModKit.Game
         public float Gain;
         public bool Rebuild;
         public string RebuildSkipReason = "";
+        /// <summary>Approximate count of Add/Merge cables whose powered side belongs to the
+        /// townheart component at the moment it is laid (i.e. cables feeding the ship grid).</summary>
+        public int AddedToTownheart;
     }
 
     /// <summary>
@@ -147,7 +153,8 @@ namespace FlotsamModKit.Game
             }
 
             // Incremental plan: never touch existing cables.
-            var inc = GrowIncremental(nodes, grids, cand, connectPoles);
+            int incTown;
+            var inc = GrowIncremental(nodes, grids, cand, connectPoles, out incTown);
             float incAdd = 0f;
             foreach (var e in inc) incAdd += e.Length;
             res.BaselineTotal = res.ExistingTotal + incAdd;
@@ -155,6 +162,7 @@ namespace FlotsamModKit.Game
 
             var chosen = inc;
             bool[] inNet = null;
+            int rebTown = 0;
 
             // Rebuild plan: full optimum, applied only when the gain beats the churn threshold.
             if (optimizeExisting && exist.Count > 0)
@@ -162,7 +170,7 @@ namespace FlotsamModKit.Game
                 List<PlannerEdge> reb;
                 bool[] net;
                 string why;
-                if (TryRebuild(nodes, grids, cand, connectPoles, out reb, out net, out why))
+                if (TryRebuild(nodes, grids, cand, connectPoles, out reb, out net, out why, out rebTown))
                 {
                     float rebTotal = 0f;
                     foreach (var e in reb) rebTotal += e.Length;
@@ -242,8 +250,13 @@ namespace FlotsamModKit.Game
                 if (!ok) res.Unreachable.Add(i);
             }
 
+            int mergeTown = 0;
             if (mergePowered)
-                SmartMerge(nodes, grids, cand, existing, removeKeys, res);
+                SmartMerge(nodes, grids, cand, existing, removeKeys, res, out mergeTown);
+
+            // Approximate ship-grid feed count: townheart-anchored growth edges (from whichever
+            // plan was chosen) plus townheart absorption merges.
+            res.AddedToTownheart = (res.Rebuild ? rebTown : incTown) + mergeTown;
 
             return res;
         }
@@ -269,17 +282,62 @@ namespace FlotsamModKit.Game
             return candKey < bestKey;
         }
 
-        /// <summary>Component-level Prim: repeatedly join the cheapest edge between the powered
-        /// network and an unpowered grid, merging whole grids exactly like EnergyGrid.Connect.</summary>
+        /// <summary>Component-level Prim in two phases: first the townheart-powered component
+        /// absorbs everything it can reach (so a nearby battery/building joins the SHIP rather
+        /// than a closer isolated powered island), then any powered component absorbs the rest.
+        /// Merges whole grids exactly like EnergyGrid.Connect. townEdgeCount reports how many
+        /// cables phase 1 laid onto the ship grid (0 when no townheart grid is powered).</summary>
         private static List<PlannerEdge> GrowIncremental(PlannerNode[] nodes, PlannerGrid[] grids,
-                                                         List<PlannerEdge> cand, bool connectPoles)
+                                                         List<PlannerEdge> cand, bool connectPoles,
+                                                         out int townEdgeCount)
         {
             var tree = new List<PlannerEdge>();
             int ng = grids.Length;
             var parent = new int[ng];
             var powered = new bool[ng];
-            for (int g = 0; g < ng; g++) { parent[g] = g; powered[g] = grids[g].Powered; }
+            var isTown = new bool[ng];
+            bool anyTown = false;
+            for (int g = 0; g < ng; g++)
+            {
+                parent[g] = g;
+                powered[g] = grids[g].Powered;
+                isTown[g] = grids[g].Powered && grids[g].IsTownheart;
+                if (isTown[g]) anyTown = true;
+            }
             var used = new int[nodes.Length];
+
+            // Phase 1: townheart component only. Skipped when no townheart grid is powered,
+            // which degrades gracefully to the classic single-phase behaviour.
+            int before = tree.Count;
+            if (anyTown) GrowPass(nodes, cand, parent, powered, isTown, used, tree, townheartOnly: true);
+            townEdgeCount = tree.Count - before;
+
+            // Phase 2: any powered component absorbs whatever unpowered targets remain.
+            GrowPass(nodes, cand, parent, powered, isTown, used, tree, townheartOnly: false);
+
+            if (!connectPoles) PrunePoleLeaves(nodes, tree);
+            return tree;
+        }
+
+        /// <summary>One Prim pass over the sorted candidates. When townheartOnly is set an edge
+        /// is eligible only if its powered side is the townheart component.</summary>
+        private static void GrowPass(PlannerNode[] nodes, List<PlannerEdge> cand,
+                                     int[] parent, bool[] powered, bool[] isTown, int[] used,
+                                     List<PlannerEdge> tree, bool townheartOnly)
+        {
+            bool Eligible(PlannerEdge e, out int ra, out int rb)
+            {
+                ra = rb = -1;
+                if (e.Exists) return false;
+                ra = Find(parent, nodes[e.A].GridId);
+                rb = Find(parent, nodes[e.B].GridId);
+                if (ra == rb) return false;
+                if (powered[ra] == powered[rb]) return false;      // exactly one side must be powered
+                if (townheartOnly && !isTown[powered[ra] ? ra : rb]) return false;
+                if (!HasFreeSlot(nodes[e.A], used[e.A])) return false;
+                if (!HasFreeSlot(nodes[e.B], used[e.B])) return false;
+                return true;
+            }
 
             bool progress = true;
             while (progress)
@@ -288,13 +346,7 @@ namespace FlotsamModKit.Game
                 for (int i = 0; i < cand.Count; i++)
                 {
                     var e = cand[i];
-                    if (e.Exists) continue;
-                    int ra = Find(parent, nodes[e.A].GridId);
-                    int rb = Find(parent, nodes[e.B].GridId);
-                    if (ra == rb) continue;
-                    if (powered[ra] == powered[rb]) continue;   // exactly one side must be powered
-                    if (!HasFreeSlot(nodes[e.A], used[e.A])) continue;
-                    if (!HasFreeSlot(nodes[e.B], used[e.B])) continue;
+                    if (!Eligible(e, out int ra, out int rb)) continue;
 
                     // Design §4.2.1 tie-break: scan the equal-length tail (cand is sorted by
                     // length) and prefer the eligible edge whose outside end has more free
@@ -306,13 +358,7 @@ namespace FlotsamModKit.Game
                     for (int j = i + 1; j < cand.Count && cand[j].Length - e.Length <= TieEpsilon; j++)
                     {
                         var c = cand[j];
-                        if (c.Exists) continue;
-                        int cra = Find(parent, nodes[c.A].GridId);
-                        int crb = Find(parent, nodes[c.B].GridId);
-                        if (cra == crb) continue;
-                        if (powered[cra] == powered[crb]) continue;
-                        if (!HasFreeSlot(nodes[c.A], used[c.A])) continue;
-                        if (!HasFreeSlot(nodes[c.B], used[c.B])) continue;
+                        if (!Eligible(c, out int cra, out int crb)) continue;
                         int cOut = powered[cra] ? c.B : c.A;
                         int cFree = FreeIncremental(nodes[cOut], used[cOut]);
                         if (TieBetter(nodes[cOut], cFree, c.Key, nodes[bestOut], bestFree, best.Key))
@@ -324,13 +370,14 @@ namespace FlotsamModKit.Game
                     tree.Add(best);
                     used[best.A]++;
                     used[best.B]++;
-                    if (powered[bestRa]) parent[bestRb] = bestRa; else parent[bestRa] = bestRb;
+                    int newRoot, absorbed;
+                    if (powered[bestRa]) { parent[bestRb] = bestRa; newRoot = bestRa; absorbed = bestRb; }
+                    else { parent[bestRa] = bestRb; newRoot = bestRb; absorbed = bestRa; }
+                    if (isTown[absorbed]) isTown[newRoot] = true;   // townheart flag survives the merge
                     progress = true;
                     break;                                       // rescan from the shortest edge
                 }
             }
-            if (!connectPoles) PrunePoleLeaves(nodes, tree);
-            return tree;
         }
 
         private static int Find(int[] parent, int x)
@@ -380,10 +427,12 @@ namespace FlotsamModKit.Game
         /// KeepBonus so equal-length ties keep the player's wiring.</summary>
         private static bool TryRebuild(PlannerNode[] nodes, PlannerGrid[] grids, List<PlannerEdge> cand,
                                        bool connectPoles,
-                                       out List<PlannerEdge> tree, out bool[] inNet, out string why)
+                                       out List<PlannerEdge> tree, out bool[] inNet, out string why,
+                                       out int townGrowCount)
         {
             tree = new List<PlannerEdge>();
             why = null;
+            townGrowCount = 0;
             inNet = new bool[nodes.Length];
             var used = new int[nodes.Length];
 
@@ -394,13 +443,22 @@ namespace FlotsamModKit.Game
                 return c != 0 ? c : x.Key.CompareTo(y.Key);
             });
 
-            // 1) internal MST per powered grid
+            // nodePowered[i]: node i already sits on a powered grid. Outward growth never
+            // absorbs such a node (powered↔powered joining is SmartMerge's job, not the
+            // rebuild tree's), which also keeps phase 2a from swallowing an island.
+            var nodePowered = new bool[nodes.Length];
+            for (int i = 0; i < nodes.Length; i++)
+            {
+                int g = nodes[i].GridId;
+                nodePowered[i] = g >= 0 && grids[g].Powered;
+            }
+
+            // 1) internal MST per powered grid (unchanged)
             var gridNodes = new Dictionary<int, HashSet<int>>();
             for (int i = 0; i < nodes.Length; i++)
             {
                 int g = nodes[i].GridId;
                 if (g < 0 || !grids[g].Powered) continue;
-                inNet[i] = true;
                 if (!gridNodes.TryGetValue(g, out var set)) { set = new HashSet<int>(); gridNodes[g] = set; }
                 set.Add(i);
             }
@@ -421,11 +479,42 @@ namespace FlotsamModKit.Game
                 }
             }
 
-            // 2) grow outward: cheapest edge with exactly one end already in the network.
-            // Note: absorbed nodes keep their island-preserved old cables, which are not
-            // charged to the rebuild's slot accounting here; in extreme cases that can
-            // over-schedule a slot — execution-time LegalNow re-checks every edge and
-            // skips the illegal one, and the next run self-heals.
+            // 2a) seed inNet with ONLY the townheart net and grow it outward first, so the
+            // ship grid — not a closer island — wins nearby unpowered targets. Skipped when
+            // no townheart grid is powered (degrades to the classic single-phase rebuild).
+            bool anyTown = false;
+            foreach (var kv in gridNodes)
+                if (grids[kv.Key].IsTownheart)
+                {
+                    foreach (int i in kv.Value) inNet[i] = true;
+                    anyTown = true;
+                }
+            if (anyTown)
+            {
+                int before = tree.Count;
+                GrowOutward(nodes, order, inNet, used, nodePowered, tree);
+                townGrowCount = tree.Count - before;
+            }
+
+            // 2b) seed the remaining powered nodes into inNet and grow outward once more.
+            foreach (var kv in gridNodes)
+                foreach (int i in kv.Value) inNet[i] = true;
+            GrowOutward(nodes, order, inNet, used, nodePowered, tree);
+
+            if (!connectPoles) PrunePoleLeaves(nodes, tree);
+            return true;
+        }
+
+        /// <summary>Outward Prim: repeatedly attach the cheapest edge with exactly one end
+        /// already in inNet, never absorbing a node that is itself on a powered grid.
+        /// Note: absorbed nodes keep their island-preserved old cables, which are not charged
+        /// to the rebuild's slot accounting here; in extreme cases that can over-schedule a
+        /// slot — execution-time LegalNow re-checks every edge and skips the illegal one, and
+        /// the next run self-heals.</summary>
+        private static void GrowOutward(PlannerNode[] nodes, List<PlannerEdge> order,
+                                        bool[] inNet, int[] used, bool[] nodePowered,
+                                        List<PlannerEdge> tree)
+        {
             bool progress = true;
             while (progress)
             {
@@ -436,6 +525,7 @@ namespace FlotsamModKit.Game
                     if (inNet[e.A] == inNet[e.B]) continue;
                     int inside = inNet[e.A] ? e.A : e.B;
                     int outside = inNet[e.A] ? e.B : e.A;
+                    if (nodePowered[outside]) continue;            // powered↔powered is a merge, not growth
                     if (used[inside] >= nodes[inside].Capacity) continue;
                     if (used[outside] >= nodes[outside].Capacity) continue;
 
@@ -452,6 +542,7 @@ namespace FlotsamModKit.Game
                         if (inNet[c.A] == inNet[c.B]) continue;
                         int cIn = inNet[c.A] ? c.A : c.B;
                         int cOut = inNet[c.A] ? c.B : c.A;
+                        if (nodePowered[cOut]) continue;
                         if (used[cIn] >= nodes[cIn].Capacity) continue;
                         if (used[cOut] >= nodes[cOut].Capacity) continue;
                         int cFree = nodes[cOut].Capacity - used[cOut];
@@ -469,17 +560,20 @@ namespace FlotsamModKit.Game
                     break;
                 }
             }
-
-            if (!connectPoles) PrunePoleLeaves(nodes, tree);
-            return true;
         }
 
-        /// <summary>Connect deficient powered grids to surplus ones, shortest cable first.
-        /// Uses pre-merge efficiency flags; the game recomputes efficiency after every merge.</summary>
+        /// <summary>Two merge phases. Phase A: the townheart component unconditionally absorbs
+        /// every other powered component it can legally reach (shortest cable first, chained),
+        /// because folding storage/production into the ship directly adds range with no downside
+        /// — no deficient×surplus condition required. Phase B: the original deficient×surplus
+        /// assist between the remaining non-townheart components. Uses pre-merge efficiency
+        /// flags; the game recomputes efficiency after every merge. townMergeCount reports how
+        /// many phase-A absorptions happened.</summary>
         private static void SmartMerge(PlannerNode[] nodes, PlannerGrid[] grids, List<PlannerEdge> cand,
                                        IList<PlannerEdge> existing, HashSet<long> removeKeys,
-                                       PlannerResult res)
+                                       PlannerResult res, out int townMergeCount)
         {
+            townMergeCount = 0;
             var uf = new UnionFind(nodes.Length);
             var used = new int[nodes.Length];
             if (existing != null)
@@ -488,15 +582,20 @@ namespace FlotsamModKit.Game
                     { uf.Union(e.A, e.B); used[e.A]++; used[e.B]++; }
             foreach (var e in res.Add) { uf.Union(e.A, e.B); used[e.A]++; used[e.B]++; }
 
-            var deficient = new Dictionary<int, bool>();
-            var surplus = new Dictionary<int, bool>();
+            var poweredComp = new HashSet<int>();
+            var townComp = new HashSet<int>();
+            var deficient = new HashSet<int>();
+            var surplus = new HashSet<int>();
+            bool anyTown = false;
             for (int i = 0; i < nodes.Length; i++)
             {
                 int g = nodes[i].GridId;
                 if (g < 0 || !grids[g].Powered) continue;
                 int r = uf.Find(i);
-                if (grids[g].Deficient) deficient[r] = true;
-                if (grids[g].Surplus) surplus[r] = true;
+                poweredComp.Add(r);
+                if (grids[g].Deficient) deficient.Add(r);
+                if (grids[g].Surplus) surplus.Add(r);
+                if (grids[g].IsTownheart) { townComp.Add(r); anyTown = true; }
             }
 
             var planned = new HashSet<long>();
@@ -506,6 +605,47 @@ namespace FlotsamModKit.Game
                     if (!removeKeys.Contains(PlannerEdge.EdgeKey(e.A, e.B)))
                         planned.Add(PlannerEdge.EdgeKey(e.A, e.B));
 
+            // Phase A: townheart absorbs any other powered component, shortest cable first, chained.
+            if (anyTown)
+            {
+                bool progressA = true;
+                while (progressA)
+                {
+                    progressA = false;
+                    foreach (var e in cand)
+                    {
+                        long k = e.Key;
+                        if (planned.Contains(k)) continue;
+                        int ra = uf.Find(e.A), rb = uf.Find(e.B);
+                        if (ra == rb) continue;
+                        if (!poweredComp.Contains(ra) || !poweredComp.Contains(rb)) continue;
+                        if (townComp.Contains(ra) == townComp.Contains(rb)) continue;   // exactly one townheart
+                        if (used[e.A] >= nodes[e.A].Capacity) continue;
+                        if (used[e.B] >= nodes[e.B].Capacity) continue;
+
+                        var m = e;
+                        m.Exists = false;
+                        res.Merge.Add(m);
+                        planned.Add(k);
+                        used[e.A]++;
+                        used[e.B]++;
+                        bool aSur = surplus.Contains(ra), bSur = surplus.Contains(rb);
+                        bool aDef = deficient.Contains(ra), bDef = deficient.Contains(rb);
+                        uf.Union(e.A, e.B);
+                        int nr = uf.Find(e.A);
+                        poweredComp.Add(nr);
+                        townComp.Add(nr);                        // absorbed → becomes the ship component
+                        deficient.Remove(nr); surplus.Remove(nr);
+                        if (aSur || bSur) surplus.Add(nr);
+                        else if (aDef || bDef) deficient.Add(nr);
+                        townMergeCount++;
+                        progressA = true;
+                        break;
+                    }
+                }
+            }
+
+            // Phase B: original deficient×surplus assist among non-townheart components.
             bool progress = true;
             while (progress)
             {
@@ -516,10 +656,9 @@ namespace FlotsamModKit.Game
                     if (planned.Contains(k)) continue;
                     int ra = uf.Find(e.A), rb = uf.Find(e.B);
                     if (ra == rb) continue;
-                    bool aDef = deficient.TryGetValue(ra, out var d1) && d1;
-                    bool bDef = deficient.TryGetValue(rb, out var d2) && d2;
-                    bool aSur = surplus.TryGetValue(ra, out var s1) && s1;
-                    bool bSur = surplus.TryGetValue(rb, out var s2) && s2;
+                    if (townComp.Contains(ra) || townComp.Contains(rb)) continue;       // handled in phase A
+                    bool aDef = deficient.Contains(ra), bDef = deficient.Contains(rb);
+                    bool aSur = surplus.Contains(ra), bSur = surplus.Contains(rb);
                     if (!((aDef && bSur) || (bDef && aSur))) continue;
                     if (used[e.A] >= nodes[e.A].Capacity) continue;
                     if (used[e.B] >= nodes[e.B].Capacity) continue;
@@ -532,8 +671,10 @@ namespace FlotsamModKit.Game
                     used[e.B]++;
                     uf.Union(e.A, e.B);
                     int nr = uf.Find(e.A);
-                    deficient[nr] = false;
-                    surplus[nr] = aSur || bSur;
+                    poweredComp.Add(nr);
+                    deficient.Remove(nr);
+                    surplus.Remove(nr);
+                    if (aSur || bSur) surplus.Add(nr);
                     progress = true;
                     break;
                 }

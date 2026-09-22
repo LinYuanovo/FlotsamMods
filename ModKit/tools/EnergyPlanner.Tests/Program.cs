@@ -21,6 +21,9 @@ internal static class Program
         Run("T11 无电孤岛不被拆线", T11IslandPreserved);
         Run("T12 平手优先空槽多的端点", T12TieFreeSlots);
         Run("T13 平手优先接建筑而非杆", T13TieBuildingOverPole);
+        Run("T14 镇心优先于更近的孤岛", T14TownheartBeatsCloserIsland);
+        Run("T15 镇心吸收可达的带电孤岛", T15TownheartAbsorbsIsland);
+        Run("T16 够不到船网时孤岛仍可吸收", T16IslandFallbackStillWorks);
 
         Console.WriteLine($"{_pass} passed, {_fail} failed");
         return _fail == 0 ? 0 : 1;
@@ -52,9 +55,16 @@ internal static class Program
         return N(id, x, 0f, cap, used, PlannerKind.Pole, grid);
     }
 
-    private static PlannerGrid G(bool powered, bool deficient = false, bool surplus = false)
+    private static PlannerGrid G(bool powered, bool deficient = false, bool surplus = false,
+                                 bool isTownheart = false)
     {
-        return new PlannerGrid { Powered = powered, Deficient = deficient, Surplus = surplus };
+        return new PlannerGrid
+        {
+            Powered = powered,
+            Deficient = deficient,
+            Surplus = surplus,
+            IsTownheart = isTownheart,
+        };
     }
 
     private static PlannerEdge E(PlannerNode[] nodes, int a, int b)
@@ -248,5 +258,57 @@ internal static class Program
         Assert(res.Add.Count >= 1 && res.Add[0].Key == PlannerEdge.EdgeKey(0, 2),
             "equal free slots → first pick must be the building edge {0,2}, not the pole");
         Assert(HasEdge(res.Add, 0, 2), "building edge present");
+    }
+
+    // T14: 电池 B(45) 同时够得着镇心 T(0,d=45) 与更近的带电孤岛 G(60,d=15)；
+    // 第一阶段必须让 B 进镇心网（{0,2}），而不是就近并入孤岛（{1,2}）。
+    private static void T14TownheartBeatsCloserIsland()
+    {
+        var nodes = new[]
+        {
+            N(0, 0f, 0f, 4, 0, PlannerKind.Building, 0),    // 镇心 T
+            N(1, 60f, 0f, 4, 0, PlannerKind.Building, 1),   // 孤岛发电机 G（grid1 带电）
+            N(2, 45f, 0f, 4, 0, PlannerKind.Building, 2),   // 电池 B（grid2 未供电）
+        };
+        var grids = new[] { G(true, isTownheart: true), G(true), G(false) };
+        var res = Plan(nodes, grids, null, range: 50f);
+        Assert(HasEdge(res.Add, 0, 2), "battery joins the townheart grid (T-B) in phase 1");
+        Assert(!HasEdge(res.Add, 1, 2), "battery must NOT be absorbed by the nearer island (G-B)");
+    }
+
+    // T15: 镇心分量吸收任何可达的带电孤岛（无需缺电×富余）；对照组（都非镇心）不合并。
+    private static void T15TownheartAbsorbsIsland()
+    {
+        var nodes = new[]
+        {
+            N(0, 0f, 0f, 4, 0, PlannerKind.Building, 0),   // 镇心 T（富余）
+            N(1, 30f, 0f, 4, 0, PlannerKind.Building, 1),  // 孤岛 S（富余）
+        };
+        var townGrids = new[] { G(true, surplus: true, isTownheart: true), G(true, surplus: true) };
+        var res = Plan(nodes, townGrids, null, range: 50f);
+        Assert(res.Merge.Count == 1 && HasEdge(res.Merge, 0, 1),
+            $"townheart absorbs the surplus island; merge={res.Merge.Count}");
+
+        // 对照组：两个都非镇心、都富余 → 现有的缺电×富余条件不满足，不合并。
+        var noTownGrids = new[] { G(true, surplus: true), G(true, surplus: true) };
+        var res2 = Plan(nodes, noTownGrids, null, range: 50f);
+        Assert(res2.Merge.Count == 0, "two non-townheart surplus grids never merge");
+    }
+
+    // T16: 镇心够不着（range 30）时，孤岛 G 仍可在第二阶段吸收 B；B 进带电岛即算可达。
+    private static void T16IslandFallbackStillWorks()
+    {
+        var nodes = new[]
+        {
+            N(0, 0f, 0f, 4, 0, PlannerKind.Building, 0),    // 镇心 T（远处）
+            N(1, 100f, 0f, 4, 0, PlannerKind.Building, 1),  // 孤岛发电机 G（带电）
+            N(2, 110f, 0f, 4, 0, PlannerKind.Building, 2),  // 电池 B（未供电）
+        };
+        var grids = new[] { G(true, isTownheart: true), G(true), G(false) };
+        var res = Plan(nodes, grids, null, range: 30f);
+        Assert(HasEdge(res.Add, 1, 2), "phase 2: island absorbs B when townheart is out of reach");
+        foreach (var e in res.Add)
+            Assert(e.A != 0 && e.B != 0, "no townheart edge (out of range)");
+        Assert(res.Unreachable.Count == 0, "B is powered via the island → reachable");
     }
 }
